@@ -270,4 +270,40 @@ function formatDate($date) {
 function formatDateTime($datetime) {
     return date('d.m.Y H:i', strtotime($datetime));
 }
+
+/**
+ * CSRF Token oluşturur
+ */
+function generateCSRFToken() {
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * CSRF Token doğrular
+ */
+function validateCSRFToken($token) {
+    if (!isset($_SESSION['csrf_token']) || empty($token)) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Yeni CSRF Token oluşturur (form başına)
+ */
+function refreshCSRFToken() {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * CSRF korumalı form başlangıcı
+ */
+function getCSRFField() {
+    $token = generateCSRFToken();
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token) . '">';
+}
 ?> 

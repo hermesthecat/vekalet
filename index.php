@@ -5,6 +5,7 @@
  */
 
 session_start();
+require_once 'functions.php';
 
 // Eğer kullanıcı zaten giriş yapmışsa dashboard'a yönlendir
 if (isset($_SESSION['user_id'])) {
@@ -39,6 +40,7 @@ if (isset($_SESSION['user_id'])) {
             <?php endif; ?>
             
             <form action="login.php" method="POST">
+                <?php echo getCSRFField(); ?>
                 <div class="form-group">
                     <label for="username">Kullanıcı Adı:</label>
                     <input type="text" id="username" name="username" required>

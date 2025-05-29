@@ -17,27 +17,34 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = trim($_POST['username']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-    
-    // Validasyon
-    if (empty($username) || empty($password) || empty($confirm_password)) {
-        $error = 'Tüm alanları doldurun!';
-    } elseif ($password !== $confirm_password) {
-        $error = 'Şifreler eşleşmiyor!';
-    } elseif (strlen($username) < 3) {
-        $error = 'Kullanıcı adı en az 3 karakter olmalı!';
-    } elseif (strlen($password) < 6) {
-        $error = 'Şifre en az 6 karakter olmalı!';
-    } elseif (userExists($username)) {
-        $error = 'Bu kullanıcı adı zaten kullanılıyor!';
+    // CSRF Token doğrulaması
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Güvenlik hatası! Lütfen tekrar deneyin.';
     } else {
-        // Kullanıcıyı kaydet
-        if (registerUser($username, $password)) {
-            $success = 'Kayıt başarılı! Giriş yapabilirsiniz.';
+        $username = trim($_POST['username']);
+        $password = $_POST['password'];
+        $confirm_password = $_POST['confirm_password'];
+        
+        // Validasyon
+        if (empty($username) || empty($password) || empty($confirm_password)) {
+            $error = 'Tüm alanları doldurun!';
+        } elseif ($password !== $confirm_password) {
+            $error = 'Şifreler eşleşmiyor!';
+        } elseif (strlen($username) < 3) {
+            $error = 'Kullanıcı adı en az 3 karakter olmalı!';
+        } elseif (strlen($password) < 6) {
+            $error = 'Şifre en az 6 karakter olmalı!';
+        } elseif (userExists($username)) {
+            $error = 'Bu kullanıcı adı zaten kullanılıyor!';
         } else {
-            $error = 'Kayıt sırasında hata oluştu!';
+            // Kullanıcıyı kaydet
+            if (registerUser($username, $password)) {
+                $success = 'Kayıt başarılı! Giriş yapabilirsiniz.';
+                // Başarılı kayıt sonrası yeni token oluştur
+                refreshCSRFToken();
+            } else {
+                $error = 'Kayıt sırasında hata oluştu!';
+            }
         }
     }
 }
@@ -69,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php endif; ?>
             
             <form method="POST">
+                <?php echo getCSRFField(); ?>
                 <div class="form-group">
                     <label for="username">Kullanıcı Adı:</label>
                     <input type="text" id="username" name="username" value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>" required>

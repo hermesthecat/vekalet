@@ -25,6 +25,11 @@
 - Gradient renkler ve modern görünüm
 - Hover efektleri ve animasyonlar
 
+✅ **Güvenlik Özellikleri**
+- **CSRF Koruması:** Tüm formlar Cross-Site Request Forgery saldırılarına karşı korumalı
+- **Token Tabanlı Güvenlik:** Her form gönderiminde benzersiz güvenlik token'ı kontrolü
+- **Otomatik Token Yenileme:** Başarılı işlemler sonrası token'lar otomatik yenilenir
+
 ## Kurulum
 
 ### Gereksinimler
@@ -132,12 +137,18 @@ vekalet/
 
 ## Güvenlik Notları
 
+✅ **Eklenen Güvenlik Özellikleri:**
+- **CSRF Koruması:** Tüm formlar Cross-Site Request Forgery saldırılarına karşı korumalı
+- **Token Tabanlı Doğrulama:** Benzersiz güvenlik token'ları ile form güvenliği
+
 ⚠️ **Önemli:** Bu sistem eğitim amaçlıdır. Üretim ortamında kullanmadan önce:
 - Şifreleri hash'leyin (bcrypt kullanın)
 - CSRF koruması ekleyin
 - Input validasyonunu güçlendirin
 - HTTPS kullanın
 - Session güvenliğini artırın
+- Rate limiting ekleyin
+- SQL Injection koruması (veritabanı kullanıyorsanız)
 
 ## Teknik Özellikler
 

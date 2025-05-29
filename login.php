@@ -12,6 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
     exit;
 }
 
+// CSRF Token doğrulaması
+if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    header('Location: index.php?error=' . urlencode('Güvenlik hatası! Lütfen tekrar deneyin.'));
+    exit;
+}
+
 $username = trim($_POST['username']);
 $password = $_POST['password'];
 
@@ -25,6 +31,8 @@ $user = loginUser($username, $password);
 if ($user) {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
+    // Giriş sonrası yeni CSRF token oluştur
+    refreshCSRFToken();
     header('Location: dashboard.php');
 } else {
     header('Location: index.php?error=' . urlencode('Kullanıcı adı veya şifre hatalı!'));

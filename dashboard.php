@@ -18,28 +18,37 @@ $myDelegations = getUserDelegations($_SESSION['user_id']);
 $receivedDelegations = getUserReceivedDelegations($_SESSION['user_id']);
 $allUsers = getAllUsers();
 
+$error = '';
+$success = '';
+
+// ÖNCE Yetki değiştirme işlemi - CSRF korumalı
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['switch_user']) || isset($_POST['switch_to_self']))) {
+    // CSRF Token doğrulaması
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Güvenlik hatası! Lütfen sayfayı yenileyin ve tekrar deneyin.';
+    } else {
+        if (isset($_POST['switch_user']) && !empty($_POST['delegate_as'])) {
+            $delegateAsId = $_POST['delegate_as'];
+            // Bu yetkinin gerçekten bu kullanıcıya ait olup olmadığını kontrol et
+            foreach ($receivedDelegations as $delegation) {
+                if ($delegation['from_user_id'] === $delegateAsId) {
+                    $_SESSION['active_as_user'] = $delegateAsId;
+                    $_SESSION['active_as_username'] = $delegation['from_username'];
+                    refreshCSRFToken(); // Yetki değişimi sonrası yeni token
+                    break;
+                }
+            }
+        } elseif (isset($_POST['switch_to_self'])) {
+            unset($_SESSION['active_as_user']);
+            unset($_SESSION['active_as_username']);
+            refreshCSRFToken(); // Yetki değişimi sonrası yeni token
+        }
+    }
+}
+
 // Aktif yetki kontrolü - hangi kullanıcı adına işlem yapılıyor
 $activeAsUser = $_SESSION['user_id']; // Varsayılan: kendi adına
 $activeAsUsername = $_SESSION['username'];
-
-if (isset($_POST['switch_user']) && !empty($_POST['delegate_as'])) {
-    $delegateAsId = $_POST['delegate_as'];
-    // Bu yetkinin gerçekten bu kullanıcıya ait olup olmadığını kontrol et
-    foreach ($receivedDelegations as $delegation) {
-        if ($delegation['from_user_id'] === $delegateAsId) {
-            $activeAsUser = $delegateAsId;
-            $activeAsUsername = $delegation['from_username'];
-            $_SESSION['active_as_user'] = $activeAsUser;
-            $_SESSION['active_as_username'] = $activeAsUsername;
-            break;
-        }
-    }
-} elseif (isset($_POST['switch_to_self'])) {
-    $activeAsUser = $_SESSION['user_id'];
-    $activeAsUsername = $_SESSION['username'];
-    unset($_SESSION['active_as_user']);
-    unset($_SESSION['active_as_username']);
-}
 
 // Session'dan aktif kullanıcıyı al
 if (isset($_SESSION['active_as_user'])) {
@@ -47,44 +56,51 @@ if (isset($_SESSION['active_as_user'])) {
     $activeAsUsername = $_SESSION['active_as_username'];
 }
 
-$error = '';
-$success = '';
-
 // Yetki devri işlemi - aktif kullanıcı adına
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] == 'delegate') {
-        $toUsername = trim($_POST['to_username']);
-        $expiryDate = $_POST['expiry_date'];
-        $description = trim($_POST['description']);
-        
-        if (empty($toUsername) || empty($expiryDate)) {
-            $error = 'Tüm gerekli alanları doldurun!';
-        } elseif ($toUsername === $activeAsUsername) {
-            $error = 'Aynı kullanıcıya yetki devredemezsiniz!';
-        } elseif (strtotime($expiryDate) <= strtotime(date('Y-m-d'))) {
-            $error = 'Bitiş tarihi bugünden sonra olmalı!';
-        } elseif (!getUserByUsername($toUsername)) {
-            $error = 'Belirtilen kullanıcı bulunamadı!';
-        } else {
-            $result = delegateAuthority($activeAsUser, $toUsername, $expiryDate, $description);
-            if (is_array($result) && isset($result['error'])) {
-                // Hata durumu
-                $error = $result['error'];
-            } elseif ($result) {
-                // Başarılı
-                $success = ($activeAsUser !== $_SESSION['user_id'] ? $activeAsUsername . ' adına ' : '') . 'Yetki başarıyla devredildi!';
-                $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
+    
+    // CSRF Token doğrulaması
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Güvenlik hatası! Lütfen sayfayı yenileyin ve tekrar deneyin.';
+    } else {
+        if ($_POST['action'] == 'delegate') {
+            $toUsername = trim($_POST['to_username']);
+            $expiryDate = $_POST['expiry_date'];
+            $description = trim($_POST['description']);
+            
+            if (empty($toUsername) || empty($expiryDate)) {
+                $error = 'Tüm gerekli alanları doldurun!';
+            } elseif ($toUsername === $activeAsUsername) {
+                $error = 'Aynı kullanıcıya yetki devredemezsiniz!';
+            } elseif (strtotime($expiryDate) <= strtotime(date('Y-m-d'))) {
+                $error = 'Bitiş tarihi bugünden sonra olmalı!';
+            } elseif (!getUserByUsername($toUsername)) {
+                $error = 'Belirtilen kullanıcı bulunamadı!';
             } else {
-                $error = 'Yetki devri sırasında hata oluştu!';
+                $result = delegateAuthority($activeAsUser, $toUsername, $expiryDate, $description);
+                if (is_array($result) && isset($result['error'])) {
+                    // Hata durumu
+                    $error = $result['error'];
+                } elseif ($result) {
+                    // Başarılı
+                    $success = ($activeAsUser !== $_SESSION['user_id'] ? $activeAsUsername . ' adına ' : '') . 'Yetki başarıyla devredildi!';
+                    $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
+                    // Başarılı işlem sonrası yeni token oluştur
+                    refreshCSRFToken();
+                } else {
+                    $error = 'Yetki devri sırasında hata oluştu!';
+                }
             }
-        }
-    } elseif ($_POST['action'] == 'revoke') {
-        $delegationId = $_POST['delegation_id'];
-        if (revokeDelegation($delegationId, $activeAsUser)) {
-            $success = 'Yetki devri iptal edildi!';
-            $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
-        } else {
-            $error = 'Yetki devri iptal edilemedi!';
+        } elseif ($_POST['action'] == 'revoke') {
+            $delegationId = $_POST['delegation_id'];
+            if (revokeDelegation($delegationId, $activeAsUser)) {
+                $success = 'Yetki devri iptal edildi!';
+                $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
+                // Başarılı işlem sonrası yeni token oluştur
+                refreshCSRFToken();
+            } else {
+                $error = 'Yetki devri iptal edilemedi!';
+            }
         }
     }
 }
@@ -112,6 +128,7 @@ $activeDelegations = getUserDelegations($activeAsUser);
             <div class="alert alert-info">
                 <strong>Dikkat:</strong> Şu anda <strong><?php echo htmlspecialchars($activeAsUsername); ?></strong> adına işlem yapıyorsunuz.
                 <form method="POST" style="display:inline; margin-left: 10px;">
+                    <?php echo getCSRFField(); ?>
                     <input type="hidden" name="switch_to_self" value="1">
                     <button type="submit" class="btn btn-small" style="background: white; color: #333; padding: 5px 10px;">
                         Kendi Adıma Dön
@@ -139,6 +156,7 @@ $activeDelegations = getUserDelegations($activeAsUser);
                 <h3>Yetki Kullanımı</h3>
                 <p>Size devredilen yetkilerle başka kullanıcı adına işlem yapabilirsiniz:</p>
                 <form method="POST">
+                    <?php echo getCSRFField(); ?>
                     <div class="form-group">
                         <label for="delegate_as">Hangi Kullanıcı Adına İşlem Yapmak İstiyorsunuz:</label>
                         <select id="delegate_as" name="delegate_as" required>
@@ -165,6 +183,7 @@ $activeDelegations = getUserDelegations($activeAsUser);
                     <?php endif; ?>
                 </h3>
                 <form method="POST">
+                    <?php echo getCSRFField(); ?>
                     <input type="hidden" name="action" value="delegate">
                     
                     <div class="form-group">
@@ -224,6 +243,7 @@ $activeDelegations = getUserDelegations($activeAsUser);
                                     <td><?php echo formatDateTime($delegation['created_at']); ?></td>
                                     <td>
                                         <form method="POST" style="display:inline;">
+                                            <?php echo getCSRFField(); ?>
                                             <input type="hidden" name="action" value="revoke">
                                             <input type="hidden" name="delegation_id" value="<?php echo $delegation['id']; ?>">
                                             <button type="submit" class="btn btn-danger btn-small" 
