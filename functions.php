@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Sistem Fonksiyonları
  * @author A. Kerem Gök
@@ -11,7 +12,8 @@ define('DELEGATIONS_FILE', 'data/delegations.json');
 /**
  * JSON dosyasını güvenli şekilde okur
  */
-function readJsonFile($filename) {
+function readJsonFile($filename)
+{
     if (!file_exists($filename)) {
         // Eğer data klasörü yoksa oluştur
         $dir = dirname($filename);
@@ -22,7 +24,7 @@ function readJsonFile($filename) {
         file_put_contents($filename, json_encode([]));
         return [];
     }
-    
+
     $content = file_get_contents($filename);
     $data = json_decode($content, true);
     return $data === null ? [] : $data;
@@ -31,7 +33,8 @@ function readJsonFile($filename) {
 /**
  * JSON dosyasına güvenli şekilde yazar
  */
-function writeJsonFile($filename, $data) {
+function writeJsonFile($filename, $data)
+{
     $dir = dirname($filename);
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
@@ -42,7 +45,8 @@ function writeJsonFile($filename, $data) {
 /**
  * Kullanıcının var olup olmadığını kontrol eder
  */
-function userExists($username) {
+function userExists($username)
+{
     $users = readJsonFile(USERS_FILE);
     foreach ($users as $user) {
         if ($user['username'] === $username) {
@@ -55,9 +59,10 @@ function userExists($username) {
 /**
  * Yeni kullanıcı kaydeder
  */
-function registerUser($username, $password) {
+function registerUser($username, $password)
+{
     $users = readJsonFile(USERS_FILE);
-    
+
     // Yeni kullanıcı bilgisi
     $newUser = [
         'id' => uniqid(),
@@ -65,7 +70,7 @@ function registerUser($username, $password) {
         'password' => $password, // Plain text olarak saklanıyor
         'created_at' => date('Y-m-d H:i:s')
     ];
-    
+
     $users[] = $newUser;
     return writeJsonFile(USERS_FILE, $users);
 }
@@ -73,7 +78,8 @@ function registerUser($username, $password) {
 /**
  * Kullanıcı girişi yapar
  */
-function loginUser($username, $password) {
+function loginUser($username, $password)
+{
     $users = readJsonFile(USERS_FILE);
     foreach ($users as $user) {
         if ($user['username'] === $username && $user['password'] === $password) {
@@ -86,7 +92,8 @@ function loginUser($username, $password) {
 /**
  * Kullanıcı ID'sine göre kullanıcı bilgisi getirir
  */
-function getUserById($userId) {
+function getUserById($userId)
+{
     $users = readJsonFile(USERS_FILE);
     foreach ($users as $user) {
         if ($user['id'] === $userId) {
@@ -99,7 +106,8 @@ function getUserById($userId) {
 /**
  * Kullanıcı adına göre kullanıcı bilgisi getirir
  */
-function getUserByUsername($username) {
+function getUserByUsername($username)
+{
     $users = readJsonFile(USERS_FILE);
     foreach ($users as $user) {
         if ($user['username'] === $username) {
@@ -112,7 +120,8 @@ function getUserByUsername($username) {
 /**
  * Tüm kullanıcıları getirir (şifre hariç)
  */
-function getAllUsers() {
+function getAllUsers()
+{
     $users = readJsonFile(USERS_FILE);
     $result = [];
     foreach ($users as $user) {
@@ -128,40 +137,44 @@ function getAllUsers() {
 /**
  * Kullanıcının belirli bir kişiye zaten aktif yetkisi olup olmadığını kontrol eder
  */
-function hasActiveDelegationTo($fromUserId, $toUserId) {
+function hasActiveDelegationTo($fromUserId, $toUserId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as $delegation) {
-        if ($delegation['from_user_id'] === $fromUserId && 
-            $delegation['to_user_id'] === $toUserId && 
-            $delegation['is_active']) {
+        if (
+            $delegation['from_user_id'] === $fromUserId &&
+            $delegation['to_user_id'] === $toUserId &&
+            $delegation['is_active']
+        ) {
             // Tarihi kontrol et
             if (strtotime($delegation['expiry_date']) >= strtotime(date('Y-m-d'))) {
                 return $delegation; // Aktif delegasyon var
             }
         }
     }
-    
+
     return false; // Aktif delegasyon yok
 }
 
 /**
  * Yetki devreder
  */
-function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description = '') {
+function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description = '')
+{
     $toUser = getUserByUsername($toUsername);
     if (!$toUser) {
         return false;
     }
-    
+
     // Aynı kullanıcıya zaten aktif yetki var mı kontrol et
     $existingDelegation = hasActiveDelegationTo($fromUserId, $toUser['id']);
     if ($existingDelegation) {
         return ['error' => 'Bu kullanıcıya zaten aktif bir yetki devriniz bulunuyor! (Bitiş: ' . formatDate($existingDelegation['expiry_date']) . ')'];
     }
-    
+
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     $delegation = [
         'id' => uniqid(),
         'from_user_id' => $fromUserId,
@@ -171,7 +184,7 @@ function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description =
         'created_at' => date('Y-m-d H:i:s'),
         'is_active' => true
     ];
-    
+
     $delegations[] = $delegation;
     return writeJsonFile(DELEGATIONS_FILE, $delegations);
 }
@@ -179,10 +192,11 @@ function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description =
 /**
  * Kullanıcının aktif yetki devrelerini getirir (verdiği)
  */
-function getUserDelegations($userId) {
+function getUserDelegations($userId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
     $result = [];
-    
+
     foreach ($delegations as $delegation) {
         if ($delegation['from_user_id'] === $userId && $delegation['is_active']) {
             // Tarihi kontrol et
@@ -196,17 +210,18 @@ function getUserDelegations($userId) {
             }
         }
     }
-    
+
     return $result;
 }
 
 /**
  * Kullanıcının sahip olduğu aktif yetkileri getirir (aldığı)
  */
-function getUserReceivedDelegations($userId) {
+function getUserReceivedDelegations($userId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
     $result = [];
-    
+
     foreach ($delegations as $delegation) {
         if ($delegation['to_user_id'] === $userId && $delegation['is_active']) {
             // Tarihi kontrol et
@@ -220,32 +235,34 @@ function getUserReceivedDelegations($userId) {
             }
         }
     }
-    
+
     return $result;
 }
 
 /**
  * Yetki devrini pasif yapar
  */
-function deactivateDelegation($delegationId) {
+function deactivateDelegation($delegationId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as &$delegation) {
         if ($delegation['id'] === $delegationId) {
             $delegation['is_active'] = false;
             break;
         }
     }
-    
+
     return writeJsonFile(DELEGATIONS_FILE, $delegations);
 }
 
 /**
  * Yetki devrini iptal eder
  */
-function revokeDelegation($delegationId, $userId) {
+function revokeDelegation($delegationId, $userId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as &$delegation) {
         if ($delegation['id'] === $delegationId && $delegation['from_user_id'] === $userId) {
             $delegation['is_active'] = false;
@@ -253,28 +270,31 @@ function revokeDelegation($delegationId, $userId) {
             return true;
         }
     }
-    
+
     return false;
 }
 
 /**
  * Tarihi formatlar
  */
-function formatDate($date) {
+function formatDate($date)
+{
     return date('d.m.Y', strtotime($date));
 }
 
 /**
  * Tarih ve saati formatlar
  */
-function formatDateTime($datetime) {
+function formatDateTime($datetime)
+{
     return date('d.m.Y H:i', strtotime($datetime));
 }
 
 /**
  * CSRF Token oluşturur
  */
-function generateCSRFToken() {
+function generateCSRFToken()
+{
     if (!isset($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -284,7 +304,8 @@ function generateCSRFToken() {
 /**
  * CSRF Token doğrular
  */
-function validateCSRFToken($token) {
+function validateCSRFToken($token)
+{
     if (!isset($_SESSION['csrf_token']) || empty($token)) {
         return false;
     }
@@ -294,7 +315,8 @@ function validateCSRFToken($token) {
 /**
  * Yeni CSRF Token oluşturur (form başına)
  */
-function refreshCSRFToken() {
+function refreshCSRFToken()
+{
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     return $_SESSION['csrf_token'];
 }
@@ -302,7 +324,8 @@ function refreshCSRFToken() {
 /**
  * CSRF korumalı form başlangıcı
  */
-function getCSRFField() {
+function getCSRFField()
+{
     $token = generateCSRFToken();
     return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token) . '">';
 }
@@ -310,9 +333,10 @@ function getCSRFField() {
 /**
  * Kullanıcının başkasına verdiği aktif yetki devri var mı kontrol eder
  */
-function hasActiveOutgoingDelegation($userId) {
+function hasActiveOutgoingDelegation($userId)
+{
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as $delegation) {
         if ($delegation['from_user_id'] === $userId && $delegation['is_active']) {
             // Tarihi kontrol et
@@ -321,14 +345,15 @@ function hasActiveOutgoingDelegation($userId) {
             }
         }
     }
-    
+
     return false; // Aktif giden delegasyon yok
 }
 
 /**
  * Kullanıcının işlem yapmasına izin verilip verilmediğini kontrol eder
  */
-function canUserPerformActions($userId) {
+function canUserPerformActions($userId)
+{
     $activeDelegation = hasActiveOutgoingDelegation($userId);
     if ($activeDelegation) {
         $toUser = getUserById($activeDelegation['to_user_id']);
@@ -338,7 +363,6 @@ function canUserPerformActions($userId) {
             'delegation' => $activeDelegation
         ];
     }
-    
+
     return ['allowed' => true];
 }
-?> 

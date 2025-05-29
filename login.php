@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Kullanıcı Giriş İşlemi
  * @author A. Kerem Gök
@@ -38,4 +39,3 @@ if ($user) {
     header('Location: index.php?error=' . urlencode('Kullanıcı adı veya şifre hatalı!'));
 }
 exit;
-?> 
