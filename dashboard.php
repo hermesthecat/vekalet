@@ -66,7 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         } elseif (!getUserByUsername($toUsername)) {
             $error = 'Belirtilen kullanıcı bulunamadı!';
         } else {
-            if (delegateAuthority($activeAsUser, $toUsername, $expiryDate, $description)) {
+            $result = delegateAuthority($activeAsUser, $toUsername, $expiryDate, $description);
+            if (is_array($result) && isset($result['error'])) {
+                // Hata durumu
+                $error = $result['error'];
+            } elseif ($result) {
+                // Başarılı
                 $success = ($activeAsUser !== $_SESSION['user_id'] ? $activeAsUsername . ' adına ' : '') . 'Yetki başarıyla devredildi!';
                 $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
             } else {

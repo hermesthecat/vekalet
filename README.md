@@ -13,6 +13,7 @@
 - Kullanıcılar yetkilerini diğer kullanıcılara devredebilir
 - Yetki devri için bitiş tarihi belirlenir
 - Opsiyonel açıklama alanı
+- **Tek Aktif Yetki Kuralı:** Bir kullanıcı aynı kişiye aynı anda sadece bir aktif yetki verebilir
 
 ✅ **Yetki Yönetimi**
 - Kullanıcılar verdiği yetkileri görüntüleyebilir ve iptal edebilir

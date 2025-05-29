@@ -126,12 +126,38 @@ function getAllUsers() {
 }
 
 /**
+ * Kullanıcının belirli bir kişiye zaten aktif yetkisi olup olmadığını kontrol eder
+ */
+function hasActiveDelegationTo($fromUserId, $toUserId) {
+    $delegations = readJsonFile(DELEGATIONS_FILE);
+    
+    foreach ($delegations as $delegation) {
+        if ($delegation['from_user_id'] === $fromUserId && 
+            $delegation['to_user_id'] === $toUserId && 
+            $delegation['is_active']) {
+            // Tarihi kontrol et
+            if (strtotime($delegation['expiry_date']) >= strtotime(date('Y-m-d'))) {
+                return $delegation; // Aktif delegasyon var
+            }
+        }
+    }
+    
+    return false; // Aktif delegasyon yok
+}
+
+/**
  * Yetki devreder
  */
 function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description = '') {
     $toUser = getUserByUsername($toUsername);
     if (!$toUser) {
         return false;
+    }
+    
+    // Aynı kullanıcıya zaten aktif yetki var mı kontrol et
+    $existingDelegation = hasActiveDelegationTo($fromUserId, $toUser['id']);
+    if ($existingDelegation) {
+        return ['error' => 'Bu kullanıcıya zaten aktif bir yetki devriniz bulunuyor! (Bitiş: ' . formatDate($existingDelegation['expiry_date']) . ')'];
     }
     
     $delegations = readJsonFile(DELEGATIONS_FILE);
