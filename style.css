@@ -204,6 +204,19 @@ body {
     border-left: 5px solid #4caf50;
 }
 
+.alert-info {
+    background: linear-gradient(135deg, #54a3ff, #74b9ff);
+    color: white;
+    border-left: 5px solid #2196f3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.alert-info form {
+    margin: 0;
+}
+
 /* Tablo Stilleri */
 .table {
     width: 100%;

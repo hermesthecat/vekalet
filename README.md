@@ -90,7 +90,14 @@ vekalet/
 - **Verdiğim Yetkiler:** Devrettiğiniz aktif yetkileri görün ve iptal edin
 - **Aldığım Yetkiler:** Size devredilen aktif yetkileri görün
 
-### 5. Çıkış
+### 5. Yetki Kullanımı (YENİ ÖZELLİK!)
+- **Yetki Seçimi:** Size devredilen yetkilerden birini seçerek o kullanıcı adına işlem yapabilirsiniz
+- **Yetki Değiştirme:** "Yetki Kullanımı" bölümünden hangi kullanıcı adına işlem yapmak istediğinizi seçin
+- **Aktif Yetki:** Seçili yetki mavi bilgi kutusunda gösterilir
+- **Kendi Adına Dönme:** İstediğiniz zaman "Kendi Adıma Dön" butonuyla kendi hesabınıza dönebilirsiniz
+- **Yetki ile İşlemler:** Seçili yetki ile o kullanıcı adına yeni yetki devredebilir veya o kullanıcının verdiği yetkileri iptal edebilirsiniz
+
+### 6. Çıkış
 - Sağ üst köşedeki "Çıkış Yap" butonunu kullanın
 
 ## Veri Yapısı
