@@ -107,6 +107,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 
 // Aktif kullanıcının delegasyonlarını al
 $activeDelegations = getUserDelegations($activeAsUser);
+
+// Kullanıcının kendi adına işlem yapma kontrolü
+$userActionStatus = canUserPerformActions($_SESSION['user_id']);
+$isBlocked = !$userActionStatus['allowed'] && $activeAsUser === $_SESSION['user_id'];
+
+// Eğer kullanıcı kendi adına işlem yapmaya çalışıyor ama aktif yetkisi varsa engelle
+if ($isBlocked && ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'delegate')) {
+    $error = $userActionStatus['message'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -132,6 +141,21 @@ $activeDelegations = getUserDelegations($activeAsUser);
                     <input type="hidden" name="switch_to_self" value="1">
                     <button type="submit" class="btn btn-small" style="background: white; color: #333; padding: 5px 10px;">
                         Kendi Adıma Dön
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($isBlocked): ?>
+            <div class="alert alert-error">
+                <strong>İşlem Engellendi:</strong> <?php echo htmlspecialchars($userActionStatus['message']); ?>
+                <form method="POST" style="display:inline; margin-left: 15px;">
+                    <?php echo getCSRFField(); ?>
+                    <input type="hidden" name="action" value="revoke">
+                    <input type="hidden" name="delegation_id" value="<?php echo $userActionStatus['delegation']['id']; ?>">
+                    <button type="submit" class="btn btn-small" style="background: white; color: #d32f2f; padding: 5px 15px; font-weight: bold;"
+                        onclick="return confirm('Aktif yetki devrinizi sonlandırmak istediğinizden emin misiniz?')">
+                        Yetkiyi Sonlandır
                     </button>
                 </form>
             </div>
@@ -182,36 +206,43 @@ $activeDelegations = getUserDelegations($activeAsUser);
                         <span style="color: #667eea; font-size: 14px;">(<?php echo htmlspecialchars($activeAsUsername); ?> adına)</span>
                     <?php endif; ?>
                 </h3>
-                <form method="POST">
-                    <?php echo getCSRFField(); ?>
-                    <input type="hidden" name="action" value="delegate">
-                    
-                    <div class="form-group">
-                        <label for="to_username">Yetki Devredilecek Kullanıcı:</label>
-                        <select id="to_username" name="to_username" required>
-                            <option value="">Kullanıcı Seçin</option>
-                            <?php foreach ($allUsers as $user): ?>
-                                <?php if ($user['username'] !== $activeAsUsername): ?>
-                                    <option value="<?php echo htmlspecialchars($user['username']); ?>">
-                                        <?php echo htmlspecialchars($user['username']); ?>
-                                    </option>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </select>
+                
+                <?php if ($isBlocked): ?>
+                    <div class="form-disabled-overlay">
+                        <p><strong>Bu bölüm devre dışı:</strong> Kendi adınıza işlem yapmak için önce mevcut yetki devrinizi sonlandırın.</p>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="expiry_date">Bitiş Tarihi:</label>
-                        <input type="date" id="expiry_date" name="expiry_date" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="description">Açıklama (Opsiyonel):</label>
-                        <textarea id="description" name="description" rows="3" placeholder="Yetki devri hakkında kısa açıklama..."></textarea>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">Yetki Devret</button>
-                </form>
+                <?php else: ?>
+                    <form method="POST">
+                        <?php echo getCSRFField(); ?>
+                        <input type="hidden" name="action" value="delegate">
+                        
+                        <div class="form-group">
+                            <label for="to_username">Yetki Devredilecek Kullanıcı:</label>
+                            <select id="to_username" name="to_username" required>
+                                <option value="">Kullanıcı Seçin</option>
+                                <?php foreach ($allUsers as $user): ?>
+                                    <?php if ($user['username'] !== $activeAsUsername): ?>
+                                        <option value="<?php echo htmlspecialchars($user['username']); ?>">
+                                            <?php echo htmlspecialchars($user['username']); ?>
+                                        </option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="expiry_date">Bitiş Tarihi:</label>
+                            <input type="date" id="expiry_date" name="expiry_date" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">Açıklama (Opsiyonel):</label>
+                            <textarea id="description" name="description" rows="3" placeholder="Yetki devri hakkında kısa açıklama..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Yetki Devret</button>
+                    </form>
+                <?php endif; ?>
             </div>
             
             <!-- Verdiğim Yetkiler -->

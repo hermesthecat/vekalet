@@ -19,6 +19,7 @@
 - Kullanıcılar verdiği yetkileri görüntüleyebilir ve iptal edebilir
 - Kullanıcılar aldığı aktif yetkileri görüntüleyebilir
 - Otomatik tarih kontrolü ve süresi dolan yetkilerin pasifleştirilmesi
+- **Yetki Engelleme:** Aktif yetki devri olan kullanıcı önce yetkiyi sonlandırmalı
 
 ✅ **Modern Kullanıcı Arayüzü**
 - Responsive tasarım
@@ -103,7 +104,14 @@ vekalet/
 - **Kendi Adına Dönme:** İstediğiniz zaman "Kendi Adıma Dön" butonuyla kendi hesabınıza dönebilirsiniz
 - **Yetki ile İşlemler:** Seçili yetki ile o kullanıcı adına yeni yetki devredebilir veya o kullanıcının verdiği yetkileri iptal edebilirsiniz
 
-### 6. Çıkış
+### 6. Yetki Engelleme Sistemi (YENİ ÖZELLİK!)
+- **Otomatik Engelleme:** Başkasına aktif yetki devri yapmış kullanıcılar kendi adlarına işlem yapamazlar
+- **Görsel Uyarı:** Kırmızı uyarı kutusu ile net bilgilendirme yapılır
+- **Hızlı Sonlandırma:** "Yetkiyi Sonlandır" butonu ile tek tıkla yetki iptal edilebilir
+- **Form Devre Dışı:** Yetki devri formu görsel olarak pasifleştirilir
+- **Güvenlik:** Kullanıcı önce mevcut yetkiyi sonlandırmak zorundadır
+
+### 7. Çıkış
 - Sağ üst köşedeki "Çıkış Yap" butonunu kullanın
 
 ## Veri Yapısı

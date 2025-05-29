@@ -306,4 +306,39 @@ function getCSRFField() {
     $token = generateCSRFToken();
     return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token) . '">';
 }
+
+/**
+ * Kullanıcının başkasına verdiği aktif yetki devri var mı kontrol eder
+ */
+function hasActiveOutgoingDelegation($userId) {
+    $delegations = readJsonFile(DELEGATIONS_FILE);
+    
+    foreach ($delegations as $delegation) {
+        if ($delegation['from_user_id'] === $userId && $delegation['is_active']) {
+            // Tarihi kontrol et
+            if (strtotime($delegation['expiry_date']) >= strtotime(date('Y-m-d'))) {
+                return $delegation; // Aktif giden delegasyon var
+            }
+        }
+    }
+    
+    return false; // Aktif giden delegasyon yok
+}
+
+/**
+ * Kullanıcının işlem yapmasına izin verilip verilmediğini kontrol eder
+ */
+function canUserPerformActions($userId) {
+    $activeDelegation = hasActiveOutgoingDelegation($userId);
+    if ($activeDelegation) {
+        $toUser = getUserById($activeDelegation['to_user_id']);
+        return [
+            'allowed' => false,
+            'message' => 'İşlem yapmak için önce ' . ($toUser ? $toUser['username'] : 'bilinmeyen kullanıcı') . ' kullanıcısına verdiğiniz yetkiyi sonlandırmalısınız. (Bitiş: ' . formatDate($activeDelegation['expiry_date']) . ')',
+            'delegation' => $activeDelegation
+        ];
+    }
+    
+    return ['allowed' => true];
+}
 ?> 
