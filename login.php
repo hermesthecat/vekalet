@@ -52,17 +52,17 @@ if ($user) {
         header('Location: index.php?error=' . urlencode('Hesabınız deaktif durumda!'));
         exit;
     }
-    
+
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['user_role'] = $user['role_id'] ?? null;
-    
+
     // Güvenli session başlat
     initializeSecureSession($user['id']);
-    
+
     // Giriş sonrası yeni CSRF token oluştur
     refreshCSRFToken();
-    
+
     logSecurityEvent('LOGIN_SUCCESS', ['username' => $username]);
     header('Location: dashboard.php');
 } else {

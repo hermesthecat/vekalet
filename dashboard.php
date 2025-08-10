@@ -34,6 +34,23 @@ $myDelegations = getUserDelegations($_SESSION['user_id']);
 $receivedDelegations = getUserReceivedDelegations($_SESSION['user_id']);
 $allUsers = getAllUsers();
 
+// PERFORMANS: Bulk loading ile N+1 sorunu çözümü
+$allPermissionsMap = loadAllPermissionsMap();
+$allUsersMap = loadAllUsersMap();
+
+// Delegasyonlarda kullanılacak user ID'leri topla
+$userIdsToResolve = [];
+foreach ($myDelegations as $delegation) {
+    $userIdsToResolve[] = $delegation['to_user_id'];
+}
+foreach ($receivedDelegations as $delegation) {
+    $userIdsToResolve[] = $delegation['from_user_id'];
+}
+$userIdsToResolve = array_unique($userIdsToResolve);
+
+// Bulk user name resolution
+$resolvedUserNames = resolveUserNames($userIdsToResolve);
+
 // Performans için received delegations lookup map oluştur + username optimize
 $receivedDelegationsMap = [];
 foreach ($receivedDelegations as &$delegation) {
@@ -60,23 +77,6 @@ if (rand(1, 100) === 1) { // %1 şans ile çalıştır
 $userPermissions = getUserPermissions($_SESSION['user_id']);
 $availablePermissions = getAllPermissions();
 
-// PERFORMANS: Bulk loading ile N+1 sorunu çözümü
-$allPermissionsMap = loadAllPermissionsMap();
-$allUsersMap = loadAllUsersMap();
-
-// Delegasyonlarda kullanılacak user ID'leri topla
-$userIdsToResolve = [];
-foreach ($myDelegations as $delegation) {
-    $userIdsToResolve[] = $delegation['to_user_id'];
-}
-foreach ($receivedDelegations as $delegation) {
-    $userIdsToResolve[] = $delegation['from_user_id'];
-}
-$userIdsToResolve = array_unique($userIdsToResolve);
-
-// Bulk user name resolution
-$resolvedUserNames = resolveUserNames($userIdsToResolve);
-
 $error = '';
 $success = '';
 
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && (isset($_POST['switch_user']) || iss
     } else {
         if (isset($_POST['switch_user']) && !empty($_POST['delegate_as'])) {
             $delegateAsId = $_POST['delegate_as'];
-            
+
             // ID formatı doğrulaması
             if (!preg_match('/^[a-zA-Z0-9]+$/', $delegateAsId)) {
                 $error = 'Geçersiz kullanıcı ID formatı!';
@@ -128,7 +128,7 @@ $activeAsUsername = $_SESSION['username'];
 if (isset($_SESSION['active_as_user'])) {
     $activeAsUser = $_SESSION['active_as_user'];
     $activeAsUsername = $_SESSION['active_as_username'];
-    
+
     // Session'daki aktif yetki hala geçerli mi kontrol et
     $validDelegation = false;
     foreach ($receivedDelegations as $delegation) {
@@ -140,7 +140,7 @@ if (isset($_SESSION['active_as_user'])) {
             }
         }
     }
-    
+
     // Eğer yetki geçersiz ise session'dan temizle
     if (!$validDelegation) {
         unset($_SESSION['active_as_user']);
@@ -187,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                 // Seçilen izinleri validate et
                 $userPermissions = getUserPermissions($activeAsUser);
                 $validPermissions = array_intersect($selectedPermissions, $userPermissions);
-                
+
                 if (empty($validPermissions)) {
                     $error = 'Seçtiğiniz yetkilere sahip değilsiniz!';
                 } else {
@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
             }
         } elseif ($_POST['action'] == 'revoke') {
             $delegationId = trim($_POST['delegation_id']);
-            
+
             // Delegation ID formatını validate et
             if (!preg_match('/^[a-zA-Z0-9]+$/', $delegationId)) {
                 $error = 'Geçersiz delegasyon ID formatı!';
@@ -224,12 +224,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                             $canRevoke = true;
                         }
                     }
-                    
+
                     if (!$canRevoke) {
                         $error = 'Bu kullanıcı adına yetki devri iptal etme yetkiniz yok!';
                     }
                 }
-                
+
                 if (!$error && revokeDelegation($delegationId, $activeAsUser)) {
                     $success = ($activeAsUser !== $_SESSION['user_id'] ? $activeAsUsername . ' adına ' : '') . 'Yetki devri iptal edildi!';
                     $myDelegations = getUserDelegations($_SESSION['user_id']); // Listeyi güncelle
@@ -260,7 +260,7 @@ if ($isBlocked && ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'
 // İşlem bazlı yetki kontrolleri
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
     $activeUserId = $activeAsUser !== $_SESSION['user_id'] ? $activeAsUser : $_SESSION['user_id'];
-    
+
     if ($_POST['action'] == 'delegate') {
         if (!hasPermission($_SESSION['user_id'], 'delegation_create', $activeUserId)) {
             $error = 'Yetki devri oluşturma için yetkiniz yok!';
@@ -391,26 +391,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Devredilecek Yetkiler:</label>
                             <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #f9f9f9;">
-                                <?php 
+                                <?php
                                 $categories = [];
                                 foreach ($availablePermissions as $permission) {
                                     if (in_array($permission['name'], $userPermissions)) {
                                         $categories[$permission['category']][] = $permission;
                                     }
                                 }
-                                
+
                                 foreach ($categories as $categoryName => $permissions): ?>
                                     <div style="margin-bottom: 15px;">
                                         <strong><?php echo ucfirst(htmlspecialchars($categoryName)); ?> Yetkileri:</strong>
                                         <div style="margin-left: 15px; margin-top: 5px;">
                                             <?php foreach ($permissions as $permission): ?>
                                                 <label style="display: block; margin-bottom: 5px; font-weight: normal;">
-                                                    <input type="checkbox" name="permissions[]" value="<?php echo htmlspecialchars($permission['name']); ?>" 
-                                                           style="margin-right: 8px;">
+                                                    <input type="checkbox" name="permissions[]" value="<?php echo htmlspecialchars($permission['name']); ?>"
+                                                        style="margin-right: 8px;">
                                                     <?php echo htmlspecialchars($permission['display_name']); ?>
                                                     <small style="color: #666; display: block; margin-left: 20px;">
                                                         <?php echo htmlspecialchars($permission['description']); ?>
@@ -468,7 +468,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                     <td><?php echo htmlspecialchars($delegation['to_username']); ?></td>
                                     <td><?php echo formatDate($delegation['expiry_date']); ?></td>
                                     <td>
-                                        <?php 
+                                        <?php
                                         if (isset($delegation['delegated_permissions']) && !empty($delegation['delegated_permissions'])) {
                                             // PERFORMANS: Bulk permission resolution
                                             $permNames = resolvePermissionNames($delegation['delegated_permissions']);
@@ -526,7 +526,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                                     </td>
                                     <td><?php echo formatDate($delegation['expiry_date']); ?></td>
                                     <td>
-                                        <?php 
+                                        <?php
                                         if (isset($delegation['delegated_permissions']) && !empty($delegation['delegated_permissions'])) {
                                             // PERFORMANS: Bulk permission resolution
                                             $permNames = resolvePermissionNames($delegation['delegated_permissions']);

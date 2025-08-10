@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $error = $passwordValidation['error'];
                 } elseif (userExists($username)) {
                     $error = 'Bu kullanıcı adı zaten kullanılıyor!';
+                } else {
                     // Kullanıcıyı kaydet
                     if (registerUser($username, $password)) {
                         $success = 'Kayıt başarılı! Giriş yapabilirsiniz.';

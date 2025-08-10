@@ -33,18 +33,18 @@ $success = '';
 
 // Kullanıcı rol güncelleme işlemi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
-    
+
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Güvenlik hatası! Lütfen sayfayı yenileyin ve tekrar deneyin.';
     } else {
-        
+
         if ($_POST['action'] == 'update_user_role') {
             if (!hasPermission($_SESSION['user_id'], 'user_management')) {
                 $error = 'Bu işlem için yetkiniz yok!';
             } else {
                 $userId = trim($_POST['user_id']);
                 $newRoleId = trim($_POST['role_id']);
-                
+
                 if (updateUserRole($userId, $newRoleId)) {
                     $success = 'Kullanıcı rolü başarıyla güncellendi!';
                     refreshCSRFToken();
@@ -52,15 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
                     $error = 'Kullanıcı rolü güncellenirken hata oluştu!';
                 }
             }
-        }
-        
-        elseif ($_POST['action'] == 'toggle_user_status') {
+        } elseif ($_POST['action'] == 'toggle_user_status') {
             if (!hasPermission($_SESSION['user_id'], 'user_management')) {
                 $error = 'Bu işlem için yetkiniz yok!';
             } else {
                 $userId = trim($_POST['user_id']);
                 $newStatus = trim($_POST['status']);
-                
+
                 if (updateUserStatus($userId, $newStatus)) {
                     $success = 'Kullanıcı durumu başarıyla güncellendi!';
                     refreshCSRFToken();
@@ -103,6 +101,7 @@ foreach ($allUsers as &$user) {
             border-radius: 10px;
             margin-bottom: 2rem;
         }
+
         .admin-nav ul {
             list-style: none;
             margin: 0;
@@ -110,6 +109,7 @@ foreach ($allUsers as &$user) {
             display: flex;
             gap: 1rem;
         }
+
         .admin-nav a {
             color: white;
             text-decoration: none;
@@ -117,48 +117,58 @@ foreach ($allUsers as &$user) {
             border-radius: 5px;
             transition: background 0.3s;
         }
+
         .admin-nav a:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
+
         .users-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 1rem;
         }
+
         .users-table th,
         .users-table td {
             padding: 0.75rem;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
+
         .users-table th {
             background: #f8f9fa;
             font-weight: bold;
         }
+
         .status-active {
             color: #28a745;
             font-weight: bold;
         }
+
         .status-inactive {
             color: #dc3545;
             font-weight: bold;
         }
+
         .permissions-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
         }
+
         .permission-category {
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 1rem;
             background: #f8f9fa;
         }
+
         .permission-category h4 {
             margin: 0 0 0.5rem 0;
             color: #333;
         }
+
         .permission-item {
             padding: 0.25rem 0;
             font-size: 0.9rem;
@@ -199,7 +209,7 @@ foreach ($allUsers as &$user) {
         <!-- Kullanıcı Yönetimi -->
         <div class="card" id="users">
             <h3>Kullanıcı Yönetimi</h3>
-            
+
             <?php if (hasPermission($_SESSION['user_id'], 'user_management')): ?>
                 <table class="users-table">
                     <thead>
@@ -230,14 +240,14 @@ foreach ($allUsers as &$user) {
                                         <select name="role_id" onchange="this.form.submit()">
                                             <option value="">Rol Seç</option>
                                             <?php foreach ($allRoles as $role): ?>
-                                                <option value="<?php echo $role['id']; ?>" 
+                                                <option value="<?php echo $role['id']; ?>"
                                                     <?php echo ($user['role_id'] ?? '') == $role['id'] ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($role['display_name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
                                     </form>
-                                    
+
                                     <form method="POST" style="display: inline-block;">
                                         <?php echo getCSRFField(); ?>
                                         <input type="hidden" name="action" value="toggle_user_status">
@@ -260,7 +270,7 @@ foreach ($allUsers as &$user) {
         <!-- Rol Yönetimi -->
         <div class="card" id="roles">
             <h3>Rol Yönetimi</h3>
-            
+
             <?php if (hasPermission($_SESSION['user_id'], 'role_management')): ?>
                 <table class="table">
                     <thead>
@@ -277,7 +287,7 @@ foreach ($allUsers as &$user) {
                                 <td><strong><?php echo htmlspecialchars($role['display_name']); ?></strong></td>
                                 <td><?php echo htmlspecialchars($role['description']); ?></td>
                                 <td>
-                                    <?php 
+                                    <?php
                                     if (in_array('*', $role['permissions'])) {
                                         echo 'Tüm İzinler';
                                     } else {
@@ -286,7 +296,7 @@ foreach ($allUsers as &$user) {
                                     ?>
                                 </td>
                                 <td>
-                                    <?php 
+                                    <?php
                                     if (in_array('*', $role['permissions'])) {
                                         echo '<em>Süper Yönetici - Tüm İzinler</em>';
                                     } else {
@@ -311,14 +321,14 @@ foreach ($allUsers as &$user) {
         <!-- İzin Görüntüleme -->
         <div class="card" id="permissions">
             <h3>Sistem İzinleri</h3>
-            
+
             <div class="permissions-grid">
-                <?php 
+                <?php
                 $categories = [];
                 foreach ($allPermissions as $permission) {
                     $categories[$permission['category']][] = $permission;
                 }
-                
+
                 foreach ($categories as $categoryName => $permissions): ?>
                     <div class="permission-category">
                         <h4><?php echo ucfirst(htmlspecialchars($categoryName)); ?> İzinleri</h4>
@@ -337,7 +347,7 @@ foreach ($allUsers as &$user) {
     <script>
         // Smooth scrolling for navigation
         document.querySelectorAll('.admin-nav a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
+            anchor.addEventListener('click', function(e) {
                 e.preventDefault();
                 document.querySelector(this.getAttribute('href')).scrollIntoView({
                     behavior: 'smooth'

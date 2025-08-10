@@ -7,7 +7,7 @@
         "category": "system"
     },
     {
-        "id": "perm002", 
+        "id": "perm002",
         "name": "role_management",
         "display_name": "Rol Yönetimi",
         "description": "Rol ve yetki ataması yapma",
@@ -22,7 +22,7 @@
     },
     {
         "id": "perm004",
-        "name": "delegation_revoke", 
+        "name": "delegation_revoke",
         "display_name": "Yetki Devri İptali",
         "description": "Mevcut yetki devrini iptal etme",
         "category": "delegation"
@@ -37,7 +37,7 @@
     {
         "id": "perm006",
         "name": "delegation_view_team",
-        "display_name": "Takım Delegasyonlarını Görme", 
+        "display_name": "Takım Delegasyonlarını Görme",
         "description": "Kendi takımının yetki devrlerini görme",
         "category": "delegation"
     },
@@ -58,7 +58,7 @@
     {
         "id": "perm009",
         "name": "reports_view",
-        "display_name": "Raporları Görme", 
+        "display_name": "Raporları Görme",
         "description": "Sistem raporlarını görüntüleme",
         "category": "reports"
     },

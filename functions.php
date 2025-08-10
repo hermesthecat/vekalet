@@ -31,24 +31,24 @@ static $permissionsCacheTime = 0;
 function getCacheValue($key, $fallbackCallback = null)
 {
     $fullKey = CACHE_PREFIX . $key;
-    
+
     // APCu cache (thread-safe)
     if (extension_loaded('apcu') && apcu_enabled()) {
         $cached = apcu_fetch($fullKey, $success);
         if ($success) {
             return $cached;
         }
-        
+
         // Cache miss - generate value
         if ($fallbackCallback && is_callable($fallbackCallback)) {
             $value = $fallbackCallback();
             apcu_store($fullKey, $value, CACHE_TTL);
             return $value;
         }
-        
+
         return false;
     }
-    
+
     // Fallback to file cache
     $cacheFile = sys_get_temp_dir() . '/vekalet_cache_' . md5($key) . '.json';
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < CACHE_TTL) {
@@ -60,14 +60,14 @@ function getCacheValue($key, $fallbackCallback = null)
             }
         }
     }
-    
+
     // Cache miss - generate value
     if ($fallbackCallback && is_callable($fallbackCallback)) {
         $value = $fallbackCallback();
         file_put_contents($cacheFile, json_encode($value), LOCK_EX);
         return $value;
     }
-    
+
     return false;
 }
 
@@ -77,11 +77,11 @@ function getCacheValue($key, $fallbackCallback = null)
 function setCacheValue($key, $value, $ttl = CACHE_TTL)
 {
     $fullKey = CACHE_PREFIX . $key;
-    
+
     if (extension_loaded('apcu') && apcu_enabled()) {
         return apcu_store($fullKey, $value, $ttl);
     }
-    
+
     // Fallback to file cache
     $cacheFile = sys_get_temp_dir() . '/vekalet_cache_' . md5($key) . '.json';
     $result = file_put_contents($cacheFile, json_encode($value), LOCK_EX);
@@ -108,7 +108,7 @@ function invalidateCache($pattern = null)
             apcu_clear_cache();
         }
     }
-    
+
     // File cache cleanup
     $tempDir = sys_get_temp_dir();
     $files = glob($tempDir . '/vekalet_cache_*.json');
@@ -142,23 +142,23 @@ function readJsonFile($filename)
         error_log("JSON dosyası okunamıyor: $filename");
         return [];
     }
-    
+
     if (flock($handle, LOCK_SH)) { // Shared lock for reading
         $content = fread($handle, filesize($filename));
         flock($handle, LOCK_UN); // Unlock
         fclose($handle);
-        
+
         if ($content === false) {
             error_log("JSON dosyası içeriği okunamıyor: $filename");
             return [];
         }
-        
+
         $data = json_decode($content, true);
         if (json_last_error() !== JSON_ERROR_NONE) {
             error_log("JSON parsing hatası ($filename): " . json_last_error_msg());
             return [];
         }
-        
+
         return $data === null ? [] : $data;
     } else {
         fclose($handle);
@@ -176,17 +176,17 @@ function writeJsonFile($filename, $data)
     if (!is_dir($dir)) {
         mkdir($dir, 0700, true); // Daha güvenli izinler
     }
-    
+
     // Dosya kilitleme ile güvenli yazma
     $tempFile = $filename . '.tmp';
     $result = file_put_contents($tempFile, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
-    
+
     if ($result !== false) {
         chmod($tempFile, 0600); // Sadece owner okuyabilir/yazabilir
         rename($tempFile, $filename);
         return $result;
     }
-    
+
     return false;
 }
 
@@ -249,8 +249,8 @@ function loginUser($username, $password)
 function getUserById($userId)
 {
     $cacheKey = 'user_by_id_' . $userId;
-    
-    return getCacheValue($cacheKey, function() use ($userId) {
+
+    return getCacheValue($cacheKey, function () use ($userId) {
         // Cache miss - load from file
         $users = readJsonFile(USERS_FILE);
         foreach ($users as $user) {
@@ -268,8 +268,8 @@ function getUserById($userId)
 function getUserByUsername($username)
 {
     $cacheKey = 'user_by_username_' . md5($username);
-    
-    return getCacheValue($cacheKey, function() use ($username) {
+
+    return getCacheValue($cacheKey, function () use ($username) {
         // Cache miss - load from file
         $users = readJsonFile(USERS_FILE);
         foreach ($users as $user) {
@@ -344,35 +344,35 @@ function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description =
     // ATOMIC OPERATION: Lock dosyası ile güvenli işlem
     $lockFile = dirname(DELEGATIONS_FILE) . '/delegation.lock';
     $lockHandle = fopen($lockFile, 'c+');
-    
+
     if (!$lockHandle || !flock($lockHandle, LOCK_EX)) {
         if ($lockHandle) fclose($lockHandle);
         return ['error' => 'Sistem yoğunluğu nedeniyle işlem gerçekleştirilemiyor. Lütfen tekrar deneyin.'];
     }
-    
+
     try {
         // STEP 1: Fresh permission validation (atomic)
         if (empty($permissions)) {
             $permissions = getUserDelegatablePermissions($fromUserId);
         }
-        
+
         // STEP 2: Real-time permission check
         $userPerms = getUserPermissions($fromUserId);
         $validPermissions = array_intersect($permissions, $userPerms);
-        
+
         if (empty($validPermissions)) {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
             return ['error' => 'Devredebileceğiniz geçerli yetki bulunamadı!'];
         }
-        
+
         // STEP 3: Circular delegation check
         if (hasCircularDelegation($fromUserId, $toUser['id'])) {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
             return ['error' => 'Döngüsel yetki devri tespit edildi! Bu işlem gerçekleştirilemez.'];
         }
-        
+
         // STEP 4: Existing delegation check (atomic)
         $existingDelegation = hasActiveDelegationTo($fromUserId, $toUser['id']);
         if ($existingDelegation) {
@@ -382,30 +382,29 @@ function delegateAuthority($fromUserId, $toUsername, $expiryDate, $description =
             return ['error' => 'Bu kullanıcıya zaten aktif bir yetki devriniz bulunuyor!'];
         }
 
-    $delegation = [
-        'id' => uniqid(),
-        'from_user_id' => $fromUserId,
-        'to_user_id' => $toUser['id'],
-        'expiry_date' => $expiryDate,
-        'description' => $description,
-        'delegated_permissions' => $validPermissions,
-        'created_at' => getCurrentUTCDateTime(), // UTC standardized
-        'is_active' => true
-    ];
+        $delegation = [
+            'id' => uniqid(),
+            'from_user_id' => $fromUserId,
+            'to_user_id' => $toUser['id'],
+            'expiry_date' => $expiryDate,
+            'description' => $description,
+            'delegated_permissions' => $validPermissions,
+            'created_at' => getCurrentUTCDateTime(), // UTC standardized
+            'is_active' => true
+        ];
 
         $delegations[] = $delegation;
         $result = writeJsonFile(DELEGATIONS_FILE, $delegations);
-        
+
         // STEP 6: Cache invalidation
         if ($result) {
             clearCache();
         }
-        
+
         flock($lockHandle, LOCK_UN);
         fclose($lockHandle);
-        
+
         return $result;
-        
     } catch (Exception $e) {
         // Error handling
         flock($lockHandle, LOCK_UN);
@@ -473,11 +472,11 @@ function deactivateDelegation($delegationId)
     // Atomic operation için retry mekanizması
     $maxRetries = 3;
     $retryCount = 0;
-    
+
     while ($retryCount < $maxRetries) {
         $delegations = readJsonFile(DELEGATIONS_FILE);
         $found = false;
-        
+
         foreach ($delegations as &$delegation) {
             if ($delegation['id'] === $delegationId && $delegation['is_active']) {
                 $delegation['is_active'] = false;
@@ -485,15 +484,15 @@ function deactivateDelegation($delegationId)
                 break;
             }
         }
-        
+
         if ($found && writeJsonFile(DELEGATIONS_FILE, $delegations)) {
             return true;
         }
-        
+
         $retryCount++;
         usleep(100000); // 100ms bekle
     }
-    
+
     error_log("deactivateDelegation failed after $maxRetries retries for ID: $delegationId");
     return false;
 }
@@ -506,32 +505,34 @@ function revokeDelegation($delegationId, $userId)
     // Atomic operation için retry mekanizması
     $maxRetries = 3;
     $retryCount = 0;
-    
+
     while ($retryCount < $maxRetries) {
         $delegations = readJsonFile(DELEGATIONS_FILE);
         $found = false;
-        
+
         foreach ($delegations as &$delegation) {
-            if ($delegation['id'] === $delegationId && 
-                $delegation['from_user_id'] === $userId && 
-                $delegation['is_active']) {
+            if (
+                $delegation['id'] === $delegationId &&
+                $delegation['from_user_id'] === $userId &&
+                $delegation['is_active']
+            ) {
                 $delegation['is_active'] = false;
                 $found = true;
                 break;
             }
         }
-        
+
         if ($found && writeJsonFile(DELEGATIONS_FILE, $delegations)) {
             return true;
         } elseif (!$found) {
             // Delegasyon bulunamadı veya zaten pasif
             return false;
         }
-        
+
         $retryCount++;
         usleep(100000); // 100ms bekle
     }
-    
+
     error_log("revokeDelegation failed after $maxRetries retries for ID: $delegationId");
     return false;
 }
@@ -545,12 +546,12 @@ function formatDate($date)
     if (empty($date) || !is_string($date)) {
         return 'Geçersiz tarih';
     }
-    
+
     $timestamp = strtotime($date);
     if ($timestamp === false) {
         return 'Geçersiz tarih formatı';
     }
-    
+
     // UTC zaman ile formatla
     return gmdate('d.m.Y', $timestamp);
 }
@@ -564,12 +565,12 @@ function formatDateTime($datetime)
     if (empty($datetime) || !is_string($datetime)) {
         return 'Geçersiz tarih/saat';
     }
-    
+
     $timestamp = strtotime($datetime);
     if ($timestamp === false) {
         return 'Geçersiz tarih/saat formatı';
     }
-    
+
     // UTC zaman ile formatla
     return gmdate('d.m.Y H:i', $timestamp) . ' UTC';
 }
@@ -609,8 +610,10 @@ function initializeSecureSession($userId)
  */
 function generateCSRFToken()
 {
-    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time']) || 
-        (time() - $_SESSION['csrf_token_time']) > 3600) { // 1 saat geçerlilik
+    if (
+        !isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time']) ||
+        (time() - $_SESSION['csrf_token_time']) > 3600
+    ) { // 1 saat geçerlilik
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32)) . '_' . time() . '_' . uniqid();
         $_SESSION['csrf_token_time'] = time();
     }
@@ -652,7 +655,7 @@ function getCSRFField($formName = 'default')
     $token = generateCSRFToken();
     $formToken = hash_hmac('sha256', $formName, $token);
     return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token) . '">' .
-           '<input type="hidden" name="form_name" value="' . htmlspecialchars($formName) . '">';
+        '<input type="hidden" name="form_name" value="' . htmlspecialchars($formName) . '">';
 }
 
 /**
@@ -663,10 +666,10 @@ function validateFormCSRFToken($token, $formName = 'default')
     if (!isset($_SESSION['csrf_token']) || empty($token)) {
         return false;
     }
-    
+
     $expectedFormToken = hash_hmac('sha256', $formName, $_SESSION['csrf_token']);
     $providedFormToken = hash_hmac('sha256', $formName, $token);
-    
+
     return hash_equals($expectedFormToken, $providedFormToken);
 }
 
@@ -678,7 +681,7 @@ function clearCache($pattern = null)
     // Legacy static cache clear
     global $usersCache, $usersCacheTime, $delegationsCache, $delegationsCacheTime;
     global $rolesCache, $rolesCacheTime, $permissionsCache, $permissionsCacheTime;
-    
+
     $usersCache = null;
     $usersCacheTime = 0;
     $delegationsCache = null;
@@ -687,7 +690,7 @@ function clearCache($pattern = null)
     $rolesCacheTime = 0;
     $permissionsCache = null;
     $permissionsCacheTime = 0;
-    
+
     // Modern cache clear
     invalidateCache($pattern);
 }
@@ -700,7 +703,7 @@ function validateDateFormat($date, $format = 'Y-m-d')
     if (empty($date) || !is_string($date)) {
         return false;
     }
-    
+
     $dateTime = DateTime::createFromFormat($format, $date);
     return $dateTime && $dateTime->format($format) === $date;
 }
@@ -714,21 +717,21 @@ function validateDateRange($date, $minDate = null, $maxDate = null)
     if ($timestamp === false) {
         return false;
     }
-    
+
     if ($minDate) {
         $minTimestamp = strtotime($minDate . ' UTC');
         if ($timestamp < $minTimestamp) {
             return false;
         }
     }
-    
+
     if ($maxDate) {
         $maxTimestamp = strtotime($maxDate . ' UTC');
         if ($timestamp > $maxTimestamp) {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -779,22 +782,22 @@ function validateUsername($username)
     if (empty($username)) {
         return ['valid' => false, 'error' => 'Kullanıcı adı boş olamaz!'];
     }
-    
+
     if (strlen($username) < 3 || strlen($username) > 20) {
         return ['valid' => false, 'error' => 'Kullanıcı adı 3-20 karakter arasında olmalı!'];
     }
-    
+
     // Whitelist approach - sadece izin verilen karakterler
     if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/', $username)) {
         return ['valid' => false, 'error' => 'Kullanıcı adı sadece harf, rakam, nokta, tire ve alt çizgi içerebilir!'];
     }
-    
+
     // Reserved keywords kontrolü
     $reserved = ['admin', 'root', 'system', 'api', 'null', 'undefined', 'guest'];
     if (in_array(strtolower($username), $reserved)) {
         return ['valid' => false, 'error' => 'Bu kullanıcı adı kullanılamaz!'];
     }
-    
+
     return ['valid' => true];
 }
 
@@ -806,15 +809,15 @@ function validatePassword($password)
     if (empty($password)) {
         return ['valid' => false, 'error' => 'Şifre boş olamaz!'];
     }
-    
+
     if (strlen($password) < 8) {
         return ['valid' => false, 'error' => 'Şifre en az 8 karakter olmalı!'];
     }
-    
+
     if (strlen($password) > 128) {
         return ['valid' => false, 'error' => 'Şifre en fazla 128 karakter olabilir!'];
     }
-    
+
     // Complexity requirements
     $patterns = [
         '/[a-z]/' => 'en az bir küçük harf',
@@ -822,24 +825,24 @@ function validatePassword($password)
         '/[0-9]/' => 'en az bir rakam',
         '/[!@#$%^&*(),.?":{}|<>]/' => 'en az bir özel karakter'
     ];
-    
+
     $missing = [];
     foreach ($patterns as $pattern => $requirement) {
         if (!preg_match($pattern, $password)) {
             $missing[] = $requirement;
         }
     }
-    
+
     if (!empty($missing)) {
         return ['valid' => false, 'error' => 'Şifre ' . implode(', ', $missing) . ' içermelidir!'];
     }
-    
+
     // Common password check
     $commonPasswords = ['12345678', 'password', 'qwerty123', 'admin123', '123456789'];
     if (in_array(strtolower($password), $commonPasswords)) {
         return ['valid' => false, 'error' => 'Bu şifre çok yaygın, lütfen daha güvenli bir şifre seçin!'];
     }
-    
+
     return ['valid' => true];
 }
 
@@ -851,28 +854,28 @@ function validateDateInput($date)
     if (empty($date)) {
         return ['valid' => false, 'error' => 'Tarih boş olamaz!'];
     }
-    
+
     // Strict format check
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
         return ['valid' => false, 'error' => 'Geçersiz tarih formatı! (YYYY-MM-DD)'];
     }
-    
+
     // Valid date check
     $dateParts = explode('-', $date);
     if (!checkdate($dateParts[1], $dateParts[2], $dateParts[0])) {
         return ['valid' => false, 'error' => 'Geçersiz tarih!'];
     }
-    
+
     // Future date check
     if (strtotime($date . ' UTC') <= getCurrentUTCTime()) {
         return ['valid' => false, 'error' => 'Bitiş tarihi bugünden sonra olmalı!'];
     }
-    
+
     // Max 1 year limit
     if (strtotime($date . ' UTC') > strtotime('+1 year', getCurrentUTCTime())) {
         return ['valid' => false, 'error' => 'Bitiş tarihi en fazla 1 yıl sonrası olabilir!'];
     }
-    
+
     return ['valid' => true];
 }
 
@@ -884,12 +887,12 @@ function validateId($id)
     if (empty($id)) {
         return ['valid' => false, 'error' => 'ID boş olamaz!'];
     }
-    
+
     // Alphanumeric only
     if (!preg_match('/^[a-zA-Z0-9]{5,}$/', $id)) {
         return ['valid' => false, 'error' => 'Geçersiz ID formatı!'];
     }
-    
+
     return ['valid' => true];
 }
 
@@ -901,12 +904,12 @@ function validateDescription($description)
     if (strlen($description) > 500) {
         return ['valid' => false, 'error' => 'Açıklama en fazla 500 karakter olabilir!'];
     }
-    
+
     // XSS prevention - basic
     if (preg_match('/<[^>]*script/i', $description) || preg_match('/javascript:/i', $description)) {
         return ['valid' => false, 'error' => 'Girişte güvenlik riski tespit edildi!'];
     }
-    
+
     return ['valid' => true];
 }
 
@@ -916,21 +919,23 @@ function validateDescription($description)
 function checkRateLimit($action, $identifier, $maxAttempts = 5, $timeWindow = 300)
 {
     $cacheKey = "rate_limit_{$action}_{$identifier}";
-    $attempts = getCacheValue($cacheKey, function() { return ['count' => 0, 'first_attempt' => getCurrentUTCTime()]; });
-    
+    $attempts = getCacheValue($cacheKey, function () {
+        return ['count' => 0, 'first_attempt' => getCurrentUTCTime()];
+    });
+
     // Reset if time window passed
     if (getCurrentUTCTime() - $attempts['first_attempt'] > $timeWindow) {
         $attempts = ['count' => 0, 'first_attempt' => getCurrentUTCTime()];
     }
-    
+
     if ($attempts['count'] >= $maxAttempts) {
         return ['allowed' => false, 'retry_after' => $timeWindow - (getCurrentUTCTime() - $attempts['first_attempt'])];
     }
-    
+
     // Increment counter
     $attempts['count']++;
     setCacheValue($cacheKey, $attempts, $timeWindow);
-    
+
     return ['allowed' => true, 'remaining' => $maxAttempts - $attempts['count']];
 }
 
@@ -952,12 +957,12 @@ function logSecurityEvent($event, $details = [], $level = 'INFO')
         'details' => $details,
         'level' => $level
     ];
-    
+
     $logFile = dirname(USERS_FILE) . '/security.log';
     $logLine = json_encode($logEntry) . PHP_EOL;
-    
+
     file_put_contents($logFile, $logLine, FILE_APPEND | LOCK_EX);
-    
+
     // Critical events ayrıca error log'a
     if ($level === 'CRITICAL' || $level === 'WARNING') {
         error_log("Security Event [$level]: $event - " . json_encode($details));
@@ -970,69 +975,69 @@ function logSecurityEvent($event, $details = [], $level = 'INFO')
 function checkDataIntegrity()
 {
     $issues = [];
-    
+
     // Users integrity
     $users = readJsonFile(USERS_FILE);
     $userIds = [];
-    
+
     foreach ($users as $user) {
         if (empty($user['id']) || empty($user['username'])) {
             $issues[] = 'Invalid user record found';
         }
-        
+
         if (in_array($user['id'], $userIds)) {
             $issues[] = 'Duplicate user ID: ' . $user['id'];
         }
-        
+
         $userIds[] = $user['id'];
     }
-    
+
     // Delegations integrity
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as $delegation) {
         if (empty($delegation['id']) || empty($delegation['from_user_id']) || empty($delegation['to_user_id'])) {
             $issues[] = 'Invalid delegation record found';
         }
-        
+
         // Check if users exist
         if (!in_array($delegation['from_user_id'], $userIds)) {
             $issues[] = 'Delegation references non-existent from_user: ' . $delegation['from_user_id'];
         }
-        
+
         if (!in_array($delegation['to_user_id'], $userIds)) {
             $issues[] = 'Delegation references non-existent to_user: ' . $delegation['to_user_id'];
         }
-        
+
         // Self-delegation check
         if ($delegation['from_user_id'] === $delegation['to_user_id']) {
             $issues[] = 'Self-delegation detected: ' . $delegation['id'];
         }
     }
-    
+
     // Roles integrity
     $roles = readJsonFile(ROLES_FILE);
     $roleIds = [];
-    
+
     foreach ($roles as $role) {
         if (empty($role['id']) || empty($role['name'])) {
             $issues[] = 'Invalid role record found';
         }
-        
+
         $roleIds[] = $role['id'];
     }
-    
+
     // Check user role references
     foreach ($users as $user) {
         if (isset($user['role_id']) && !in_array($user['role_id'], $roleIds)) {
             $issues[] = 'User references non-existent role: ' . $user['username'] . ' -> ' . $user['role_id'];
         }
     }
-    
+
     if (!empty($issues)) {
         logSecurityEvent('DATA_INTEGRITY_ISSUES', ['issues' => $issues], 'WARNING');
     }
-    
+
     return $issues;
 }
 
@@ -1043,12 +1048,12 @@ function cleanupExpiredDelegations()
 {
     $delegations = readJsonFile(DELEGATIONS_FILE);
     $cleaned = 0;
-    
+
     foreach ($delegations as &$delegation) {
         if ($delegation['is_active'] && isDelegationExpired($delegation['expiry_date'])) {
             $delegation['is_active'] = false;
             $cleaned++;
-            
+
             logSecurityEvent('DELEGATION_EXPIRED', [
                 'delegation_id' => $delegation['id'],
                 'from_user' => $delegation['from_user_id'],
@@ -1057,12 +1062,12 @@ function cleanupExpiredDelegations()
             ]);
         }
     }
-    
+
     if ($cleaned > 0) {
         writeJsonFile(DELEGATIONS_FILE, $delegations);
         clearCache('delegation');
     }
-    
+
     return $cleaned;
 }
 
@@ -1076,31 +1081,35 @@ function checkMemoryUsage()
         'peak' => memory_get_peak_usage(true),
         'limit' => ini_get('memory_limit')
     ];
-    
+
     // Convert to MB
     $usage['current_mb'] = round($usage['current'] / 1024 / 1024, 2);
     $usage['peak_mb'] = round($usage['peak'] / 1024 / 1024, 2);
-    
+
     // Warning if over 80% of limit
     $limitBytes = return_bytes($usage['limit']);
     if ($usage['peak'] > ($limitBytes * 0.8)) {
         logSecurityEvent('HIGH_MEMORY_USAGE', $usage, 'WARNING');
     }
-    
+
     return $usage;
 }
 
 /**
  * Helper function to convert memory limit string to bytes
  */
-function return_bytes($val) {
+function return_bytes($val)
+{
     $val = trim($val);
-    $last = strtolower($val[strlen($val)-1]);
+    $last = strtolower($val[strlen($val) - 1]);
     $val = intval($val);
-    switch($last) {
-        case 'g': $val *= 1024;
-        case 'm': $val *= 1024;
-        case 'k': $val *= 1024;
+    switch ($last) {
+        case 'g':
+            $val *= 1024;
+        case 'm':
+            $val *= 1024;
+        case 'k':
+            $val *= 1024;
     }
     return $val;
 }
@@ -1112,20 +1121,20 @@ function systemHeartbeat()
 {
     // Cleanup expired delegations
     $cleanedCount = cleanupExpiredDelegations();
-    
+
     // Check data integrity
     $integrityIssues = checkDataIntegrity();
-    
+
     // Memory check
     $memoryUsage = checkMemoryUsage();
-    
+
     // Log heartbeat
     logSecurityEvent('SYSTEM_HEARTBEAT', [
         'cleaned_delegations' => $cleanedCount,
         'integrity_issues_count' => count($integrityIssues),
         'memory_usage_mb' => $memoryUsage['current_mb']
     ]);
-    
+
     return [
         'status' => 'ok',
         'cleaned_delegations' => $cleanedCount,
@@ -1144,18 +1153,18 @@ function systemHeartbeat()
 function getRoleById($roleId)
 {
     global $rolesCache, $rolesCacheTime;
-    
+
     if ($rolesCache === null || (time() - $rolesCacheTime) > CACHE_TTL) {
         $rolesCache = readJsonFile(ROLES_FILE);
         $rolesCacheTime = time();
     }
-    
+
     foreach ($rolesCache as $role) {
         if ($role['id'] === $roleId) {
             return $role;
         }
     }
-    
+
     return false;
 }
 
@@ -1165,12 +1174,12 @@ function getRoleById($roleId)
 function getAllRoles()
 {
     global $rolesCache, $rolesCacheTime;
-    
+
     if ($rolesCache === null || (time() - $rolesCacheTime) > CACHE_TTL) {
         $rolesCache = readJsonFile(ROLES_FILE);
         $rolesCacheTime = time();
     }
-    
+
     return $rolesCache;
 }
 
@@ -1180,18 +1189,18 @@ function getAllRoles()
 function getPermissionByName($permissionName)
 {
     global $permissionsCache, $permissionsCacheTime;
-    
+
     if ($permissionsCache === null || (time() - $permissionsCacheTime) > CACHE_TTL) {
         $permissionsCache = readJsonFile(PERMISSIONS_FILE);
         $permissionsCacheTime = time();
     }
-    
+
     foreach ($permissionsCache as $permission) {
         if ($permission['name'] === $permissionName) {
             return $permission;
         }
     }
-    
+
     return false;
 }
 
@@ -1201,12 +1210,12 @@ function getPermissionByName($permissionName)
 function getAllPermissions()
 {
     global $permissionsCache, $permissionsCacheTime;
-    
+
     if ($permissionsCache === null || (time() - $permissionsCacheTime) > CACHE_TTL) {
         $permissionsCache = readJsonFile(PERMISSIONS_FILE);
         $permissionsCacheTime = time();
     }
-    
+
     return $permissionsCache;
 }
 
@@ -1219,9 +1228,9 @@ function getUserPermissions($userId, $activeAsUserId = null)
     if (!$user) {
         return [];
     }
-    
+
     $permissions = [];
-    
+
     // 1. Kullanıcının kendi rol izinlerini al
     if (isset($user['role_id'])) {
         $role = getRoleById($user['role_id']);
@@ -1237,13 +1246,13 @@ function getUserPermissions($userId, $activeAsUserId = null)
             }
         }
     }
-    
+
     // 2. Eğer başka biri adına işlem yapıyorsa, delegasyon izinlerini al
     if ($activeAsUserId && $activeAsUserId !== $userId) {
         $delegationPerms = getDelegatedPermissions($userId, $activeAsUserId);
         $permissions = $delegationPerms; // Delegasyon sadece belirlenen izinler
     }
-    
+
     return array_unique($permissions);
 }
 
@@ -1262,12 +1271,14 @@ function hasPermission($userId, $permission, $activeAsUserId = null)
 function getDelegatedPermissions($userId, $fromUserId)
 {
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as $delegation) {
-        if ($delegation['to_user_id'] === $userId && 
-            $delegation['from_user_id'] === $fromUserId && 
-            $delegation['is_active']) {
-            
+        if (
+            $delegation['to_user_id'] === $userId &&
+            $delegation['from_user_id'] === $fromUserId &&
+            $delegation['is_active']
+        ) {
+
             // Tarihi kontrol et
             $expiryTime = strtotime($delegation['expiry_date'] . ' 23:59:59 UTC');
             if ($expiryTime >= time()) {
@@ -1275,7 +1286,7 @@ function getDelegatedPermissions($userId, $fromUserId)
             }
         }
     }
-    
+
     return [];
 }
 
@@ -1306,23 +1317,23 @@ function requirePermission($userId, $permission, $activeAsUserId = null)
 /**
  * Döngüsel delegasyon kontrolü (A→B→A)
  */
-function hasCircularDelegation($fromUserId, $toUserId, $visited = []) 
+function hasCircularDelegation($fromUserId, $toUserId, $visited = [])
 {
     // Sonsuz döngü korunması
     if (count($visited) > 20) {
         return true; // Çok derin delegasyon zinciri
     }
-    
+
     // Circular dependency check
     if (in_array($fromUserId, $visited)) {
         return true; // Döngü tespit edildi
     }
-    
+
     $visited[] = $fromUserId;
-    
+
     // $toUserId'nin aktif delegasyonlarını kontrol et
     $delegations = readJsonFile(DELEGATIONS_FILE);
-    
+
     foreach ($delegations as $delegation) {
         if ($delegation['from_user_id'] === $toUserId && $delegation['is_active']) {
             // Tarihi kontrol et
@@ -1335,7 +1346,7 @@ function hasCircularDelegation($fromUserId, $toUserId, $visited = [])
             }
         }
     }
-    
+
     return false;
 }
 
@@ -1350,7 +1361,7 @@ function loadAllPermissionsMap()
 {
     static $permMap = null;
     static $loadTime = 0;
-    
+
     if ($permMap === null || (time() - $loadTime) > CACHE_TTL) {
         $permMap = [];
         $perms = getAllPermissions();
@@ -1359,7 +1370,7 @@ function loadAllPermissionsMap()
         }
         $loadTime = time();
     }
-    
+
     return $permMap;
 }
 
@@ -1370,7 +1381,7 @@ function loadAllUsersMap()
 {
     static $userMap = null;
     static $loadTime = 0;
-    
+
     if ($userMap === null || (time() - $loadTime) > CACHE_TTL) {
         $userMap = [];
         $users = readJsonFile(USERS_FILE);
@@ -1379,7 +1390,7 @@ function loadAllUsersMap()
         }
         $loadTime = time();
     }
-    
+
     return $userMap;
 }
 
@@ -1391,10 +1402,10 @@ function resolvePermissionNames($permissionNames)
     if (empty($permissionNames)) {
         return [];
     }
-    
+
     $permMap = loadAllPermissionsMap();
     $resolved = [];
-    
+
     foreach ($permissionNames as $permName) {
         if (isset($permMap[$permName])) {
             $resolved[] = $permMap[$permName]['display_name'];
@@ -1402,7 +1413,7 @@ function resolvePermissionNames($permissionNames)
             $resolved[] = $permName;
         }
     }
-    
+
     return $resolved;
 }
 
@@ -1414,10 +1425,10 @@ function resolveUserNames($userIds)
     if (empty($userIds)) {
         return [];
     }
-    
+
     $userMap = loadAllUsersMap();
     $resolved = [];
-    
+
     foreach ($userIds as $userId) {
         if (isset($userMap[$userId])) {
             $resolved[$userId] = $userMap[$userId]['username'];
@@ -1425,7 +1436,7 @@ function resolveUserNames($userIds)
             $resolved[$userId] = 'Bilinmeyen Kullanıcı';
         }
     }
-    
+
     return $resolved;
 }
 
@@ -1436,7 +1447,7 @@ function updateUserRole($userId, $roleId)
 {
     $users = readJsonFile(USERS_FILE);
     $updated = false;
-    
+
     foreach ($users as &$user) {
         if ($user['id'] === $userId) {
             $user['role_id'] = $roleId;
@@ -1445,12 +1456,12 @@ function updateUserRole($userId, $roleId)
             break;
         }
     }
-    
+
     if ($updated && writeJsonFile(USERS_FILE, $users)) {
         clearCache();
         return true;
     }
-    
+
     return false;
 }
 
@@ -1461,7 +1472,7 @@ function updateUserStatus($userId, $status)
 {
     $users = readJsonFile(USERS_FILE);
     $updated = false;
-    
+
     foreach ($users as &$user) {
         if ($user['id'] === $userId) {
             $user['status'] = $status;
@@ -1470,12 +1481,12 @@ function updateUserStatus($userId, $status)
             break;
         }
     }
-    
+
     if ($updated && writeJsonFile(USERS_FILE, $users)) {
         clearCache();
         return true;
     }
-    
+
     return false;
 }
 
@@ -1508,7 +1519,7 @@ function canUserPerformActions($userId)
         $toUser = getUserById($activeDelegation['to_user_id']);
         // Güvenlik için detaylı bilgi log'a yazılır
         error_log("User $userId blocked due to active delegation to " . $activeDelegation['to_user_id'] . ", expires: " . $activeDelegation['expiry_date']);
-        
+
         return [
             'allowed' => false,
             'message' => 'Aktif bir yetki delegasyonunuz bulunduğu için işlem yapamazsınız. Lütfen önce mevcut yetkiyi sonlandırın.',

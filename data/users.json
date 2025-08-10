@@ -9,7 +9,7 @@
     },
     {
         "id": "user002",
-        "username": "kerem", 
+        "username": "kerem",
         "password": "$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm",
         "role_id": "role003",
         "status": "active",
@@ -19,7 +19,7 @@
         "id": "user003",
         "username": "mehmet",
         "password": "$2y$10$CwTycUXWue0Thq9StjUM0.Uqc.1FH4I9G6Z6RgEAj4hJJPAKvRn2i",
-        "role_id": "role004", 
+        "role_id": "role004",
         "status": "active",
         "created_at": "2024-01-17 09:15:00"
     },

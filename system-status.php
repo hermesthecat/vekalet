@@ -55,7 +55,7 @@ $logFile = dirname(USERS_FILE) . '/security.log';
 if (file_exists($logFile)) {
     $lines = file($logFile, FILE_IGNORE_NEW_LINES);
     $recentEvents = array_slice($lines, -50); // Son 50 event
-    
+
     foreach ($recentEvents as $line) {
         $event = json_decode($line, true);
         if ($event && strtotime($event['timestamp']) > (time() - 86400)) {
@@ -67,13 +67,15 @@ if (file_exists($logFile)) {
 // Statistics
 $users = readJsonFile(USERS_FILE);
 $delegations = readJsonFile(DELEGATIONS_FILE);
-$activeDelegations = array_filter($delegations, function($d) { 
-    return $d['is_active'] && !isDelegationExpired($d['expiry_date']); 
+$activeDelegations = array_filter($delegations, function ($d) {
+    return $d['is_active'] && !isDelegationExpired($d['expiry_date']);
 });
 
 $stats = [
     'total_users' => count($users),
-    'active_users' => count(array_filter($users, function($u) { return ($u['status'] ?? 'active') === 'active'; })),
+    'active_users' => count(array_filter($users, function ($u) {
+        return ($u['status'] ?? 'active') === 'active';
+    })),
     'total_delegations' => count($delegations),
     'active_delegations' => count($activeDelegations),
     'expired_delegations' => count($delegations) - count($activeDelegations)
@@ -83,6 +85,7 @@ $stats = [
 
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -95,6 +98,7 @@ $stats = [
             gap: 1rem;
             margin-bottom: 2rem;
         }
+
         .metric-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -102,22 +106,44 @@ $stats = [
             border-radius: 10px;
             text-align: center;
         }
+
         .metric-value {
             font-size: 2.5em;
             font-weight: bold;
             margin: 0.5rem 0;
         }
-        .status-good { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
-        .status-warning { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
-        .status-error { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); }
+
+        .status-good {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .status-warning {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+
         .log-table {
             font-size: 0.9em;
             max-height: 400px;
             overflow-y: auto;
         }
-        .log-level-INFO { color: #2196F3; }
-        .log-level-WARNING { color: #FF9800; }
-        .log-level-CRITICAL { color: #f44336; font-weight: bold; }
+
+        .log-level-INFO {
+            color: #2196F3;
+        }
+
+        .log-level-WARNING {
+            color: #FF9800;
+        }
+
+        .log-level-CRITICAL {
+            color: #f44336;
+            font-weight: bold;
+        }
+
         .system-info {
             background: #f5f5f5;
             padding: 1rem;
@@ -177,20 +203,20 @@ $stats = [
                 <div><strong>Data Directory Writable:</strong> <?php echo $systemStats['file_permissions']['data_dir'] ? 'Yes' : 'No'; ?></div>
                 <div><strong>Cache Type:</strong> <?php echo $systemStats['cache_status']['apcu_enabled'] ? 'APCu (Optimized)' : 'File-based (Fallback)'; ?></div>
                 <?php if ($systemStats['cache_status']['apcu_enabled'] && $systemStats['cache_status']['cache_info']): ?>
-                <div><strong>APCu Cache Size:</strong> <?php echo round($systemStats['cache_status']['cache_info']['mem_size'] / 1024 / 1024, 2); ?>MB</div>
-                <div><strong>APCu Cache Hits:</strong> <?php echo number_format($systemStats['cache_status']['cache_info']['num_hits'] ?? 0); ?></div>
+                    <div><strong>APCu Cache Size:</strong> <?php echo round($systemStats['cache_status']['cache_info']['mem_size'] / 1024 / 1024, 2); ?>MB</div>
+                    <div><strong>APCu Cache Hits:</strong> <?php echo number_format($systemStats['cache_status']['cache_info']['num_hits'] ?? 0); ?></div>
                 <?php endif; ?>
             </div>
         </div>
 
         <!-- Data Integrity -->
         <div class="card">
-            <h3>Veri Bütünlüğü 
+            <h3>Veri Bütünlüğü
                 <span class="<?php echo empty($integrityIssues) ? 'status-active' : 'status-inactive'; ?>" style="font-size: 14px; margin-left: 10px;">
                     <?php echo empty($integrityIssues) ? 'OK' : count($integrityIssues) . ' Sorun'; ?>
                 </span>
             </h3>
-            
+
             <?php if (empty($integrityIssues)): ?>
                 <p class="alert alert-success">Veri bütünlüğü kontrolü başarılı. Herhangi bir sorun tespit edilmedi.</p>
             <?php else: ?>
@@ -208,7 +234,7 @@ $stats = [
         <!-- Security Log -->
         <div class="card">
             <h3>Güvenlik Olayları (Son 24 Saat)</h3>
-            
+
             <?php if (empty($securityLog)): ?>
                 <p class="no-data">Son 24 saatte kayıtlı güvenlik olayı bulunmuyor.</p>
             <?php else: ?>
@@ -253,4 +279,5 @@ $stats = [
         }, 30000);
     </script>
 </body>
+
 </html>

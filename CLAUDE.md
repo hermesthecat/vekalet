@@ -2,126 +2,160 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## High-Level Architecture
 
-This is a PHP-based user authority delegation system with JSON file storage. The application allows users to:
+This is a **PHP-based authority delegation system** with JSON file storage implementing a sophisticated role-based access control (RBAC) system. Users can delegate specific permissions to other users for defined time periods with built-in security measures.
 
-- Register and login with username/password
-- Delegate their authority to other users with expiration dates
-- Switch between acting on their own behalf or on behalf of others
-- Manage and revoke delegated authorities
-- Automatic blocking when users have active delegations
+### Core System Components
 
-## Architecture
+**Authentication & Session Management:**
 
-### Core Files Structure
+- JSON file-based user storage with bcrypt password hashing
+- Secure session management with signature validation to prevent hijacking
+- CSRF protection on all forms with token rotation
+- Rate limiting on login/registration attempts
 
-```bash
-vekalet/
-├── index.php          # Landing/login page
-├── login.php           # Login processing
-├── register.php        # User registration page and logic
-├── dashboard.php       # Main dashboard with authority management
-├── logout.php          # Session termination
-├── functions.php       # Core system functions and business logic
-├── style.css           # Frontend styles
-└── data/              # JSON data storage (auto-created)
-    ├── users.json     # User accounts
-    └── delegations.json # Authority delegations
-```
+**Authority Delegation Engine:**
 
-### Key Components
+- **Atomic Operations:** File locking mechanisms prevent race conditions during delegation creation/revocation
+- **Circular Delegation Prevention:** Recursive checks prevent A→B→C→A delegation chains
+- **Permission Inheritance:** Users can only delegate permissions they currently possess
+- **Selective Permission Delegation:** Users can choose specific permissions to delegate rather than all permissions
+- **Authority Blocking:** Users with active outgoing delegations cannot perform actions in their own name until delegation is revoked
 
-**Session Management**: PHP sessions are used throughout for user authentication and maintaining active authority context.
+**Role-Based Permission System:**
 
-**Data Storage**: All data is stored in JSON files in the `data/` directory. The system automatically creates this directory and initializes empty JSON arrays if files don't exist.
+- 4 predefined roles: Super Admin (all permissions), Admin, Manager, User
+- 11 granular permissions across categories: system, delegation, reports, profile
+- Permission validation occurs at multiple levels (role + delegation)
+- Bulk permission resolution to prevent N+1 query problems
 
-**Authority System**: Users can delegate their authority to others with expiration dates. The system tracks:
+**Performance & Caching:**
 
-- Active delegations (from user to another)
-- Received delegations (from others to user)
-- Authority switching (acting on behalf of others)
-- Automatic blocking when users have active outgoing delegations
+- **Two-tier caching:** APCu (in-memory) with file-based fallback
+- **Bulk loading patterns:** Resolve multiple user names and permissions in single operations
+- **Static caching:** In-memory caching for frequently accessed data
+- Memory usage monitoring with warnings at 80% of PHP memory limit
 
-**Security Features**:
-
-- CSRF protection on all forms with token validation
-- Input sanitization with htmlspecialchars()
-- Session-based authentication
-- Automatic token refresh after successful operations
-
-### Core Functions (functions.php)
-
-**Data Operations**:
-
-- `readJsonFile($filename)` - Safe JSON file reading with auto-creation
-- `writeJsonFile($filename, $data)` - Safe JSON file writing
-- `getUserById()`, `getUserByUsername()`, `getAllUsers()` - User lookup operations
-
-**Authority Management**:
-
-- `delegateAuthority()` - Create new authority delegation with validation
-- `getUserDelegations()` - Get user's outgoing delegations
-- `getUserReceivedDelegations()` - Get user's incoming delegations
-- `revokeDelegation()` - Cancel existing delegation
-- `hasActiveDelegationTo()` - Check for existing delegation to specific user
-- `canUserPerformActions()` - Validate if user can act on their own behalf
-
-**Security**:
-
-- `generateCSRFToken()`, `validateCSRFToken()`, `refreshCSRFToken()` - CSRF protection
-- `getCSRFField()` - Generate hidden CSRF form field
-
-## Development Environment
-
-### Requirements
-
-- PHP 7.0+ with session support
-- Web server (Apache/Nginx)
-- File system write permissions for data/ directory
-
-### Local Development Setup
+### File Structure & Data Flow
 
 ```bash
-# Set up permissions (Linux/macOS)
-chmod 755 /path/to/vekalet/
-chmod 777 /path/to/vekalet/data/
-
-# For Windows with XAMPP/WAMP, ensure web server has write access to data/ folder
+data/
+├── users.json          # User accounts with role assignments
+├── roles.json          # Role definitions with permission arrays
+├── permissions.json    # Granular permission definitions
+├── delegations.json    # Authority delegation records
+└── security.log        # Security event logging
 ```
 
-### Testing
+**Critical Files:**
 
-This is a simple PHP application without formal testing framework. Test manually by:
+- `functions.php`: Core system logic (1500+ lines) - contains all business logic
+- `dashboard.php`: Main user interface with delegation management
+- `admin.php`: Administrative interface for user/role management  
+- `system-status.php`: Real-time monitoring dashboard
 
-1. **User Registration**: Create users through register.php
-2. **Authentication**: Verify login/logout functionality
-3. **Authority Delegation**: Test delegation creation with various scenarios
-4. **Authority Switching**: Test switching between user contexts
-5. **Blocking Logic**: Verify users with active delegations cannot act on own behalf
-6. **CSRF Protection**: Verify forms fail without proper tokens
+### Security Architecture
 
-### Common Operations
+**Multi-layered Security:**
 
-**Reset Data**: Delete contents of data/ directory to clear all users and delegations
+1. **Input Validation:** Comprehensive validation for all user inputs with whitelist approaches
+2. **CSRF Protection:** Per-form tokens with HMAC validation
+3. **Session Security:** Signature-based validation prevents session hijacking  
+4. **Atomic Operations:** File locking prevents data corruption during concurrent operations
+5. **Security Logging:** All authentication attempts and critical actions are logged
+6. **Permission Escalation Prevention:** Real-time permission validation before each action
 
-**Debug Issues**: Check web server error logs for PHP errors. Common issues:
+**UTC Time Standardization:** All timestamps stored in UTC to prevent timezone-related bugs.
 
-- File permissions on data/ directory
-- Session configuration
-- JSON encoding/decoding errors
+### Business Logic Patterns
 
-## Important Notes
+**Authority Switching:**
 
-**Security Considerations**: This system stores passwords in plain text and is designed for educational purposes. For production use:
+- Users can "switch" to operate on behalf of someone who delegated authority to them
+- All actions taken show clear indication of "acting as [username]"
+- Permission checks use the active authority context
 
-- Implement password hashing (bcrypt)
-- Add HTTPS enforcement
-- Implement rate limiting
-- Add input validation beyond basic sanitization
-- Consider database storage instead of JSON files
-- Add proper error logging
+**Delegation Lifecycle:**
 
-**Authority Logic**: The system enforces a "single active delegation" rule - users cannot create multiple active delegations to the same recipient. Users with active outgoing delegations are blocked from performing actions in their own name until they revoke the delegation.
+- Create → Validate permissions → Check for circular delegation → Atomic file write
+- Active delegations block the delegator from self-actions until revoked
+- Expired delegations are automatically cleaned up via system heartbeat
 
-**Data Persistence**: All data is stored in JSON files. The system automatically handles file creation and maintains data integrity, but consider implementing proper backup strategies for production use.
+## Development Commands
+
+**No build system required** - this is a standard PHP application.
+
+### Local Development
+
+```bash
+# Start local development server
+php -S localhost:8000
+
+# Check syntax of all PHP files
+php -l *.php
+
+# View security logs in real-time  
+tail -f data/security.log
+```
+
+### File Permissions Setup
+
+```bash
+# Set secure permissions for production
+chmod 755 .
+chmod 700 data/
+chmod 600 data/*.json
+```
+
+### System Monitoring
+
+- Access `system-status.php` to view real-time system metrics
+- Monitor `data/security.log` for security events
+- Check data integrity via the system status dashboard
+
+## Key Implementation Details
+
+### Atomic Delegation Operations
+
+```php
+// Critical pattern used throughout - file locking for atomicity
+$lockFile = dirname(DELEGATIONS_FILE) . '/delegation.lock';
+$lockHandle = fopen($lockFile, 'c+');
+if (!$lockHandle || !flock($lockHandle, LOCK_EX)) {
+    return ['error' => 'System busy, please retry'];
+}
+// ... perform operations ...
+flock($lockHandle, LOCK_UN);
+fclose($lockHandle);
+```
+
+### Permission Resolution Pattern
+
+The system uses bulk loading to avoid N+1 queries:
+
+```php
+// Load all users/permissions once, resolve many IDs efficiently
+$userMap = loadAllUsersMap();
+$resolved = resolveUserNames($userIds);  // Batch operation
+```
+
+### Security Event Logging
+
+All security-relevant actions are logged with structured data:
+
+```php
+logSecurityEvent('LOGIN_FAILED', [
+    'username' => $username,
+    'ip' => $_SERVER['REMOTE_ADDR']
+], 'WARNING');
+```
+
+## Common Workflows
+
+1. **User Registration/Login** → Validate → Hash password → Create session signature
+2. **Authority Delegation** → Validate permissions → Check circular delegation → Atomic write → Cache invalidation
+3. **Authority Switching** → Validate delegation exists → Update session context → Show active authority indicator
+4. **System Maintenance** → Run heartbeat → Clean expired delegations → Check data integrity → Log metrics
+
+The system is production-ready with comprehensive error handling, security logging, and performance optimizations.

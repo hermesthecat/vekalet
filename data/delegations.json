@@ -14,7 +14,7 @@
         "is_active": true
     },
     {
-        "id": "del002", 
+        "id": "del002",
         "from_user_id": "user001",
         "to_user_id": "user004",
         "expiry_date": "2024-06-30",
@@ -28,7 +28,7 @@
     },
     {
         "id": "del003",
-        "from_user_id": "user004", 
+        "from_user_id": "user004",
         "to_user_id": "user002",
         "expiry_date": "2024-02-15",
         "description": "Kısa süreli proje yönetimi",
