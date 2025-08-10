@@ -5,6 +5,13 @@
  * @author A. Kerem Gök
  */
 
+// Güvenlik headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Content-Security-Policy: default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data:');
+
 session_start();
 require_once 'functions.php';
 
@@ -26,25 +33,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $password = $_POST['password'];
         $confirm_password = $_POST['confirm_password'];
 
-        // Validasyon
-        if (empty($username) || empty($password) || empty($confirm_password)) {
+        // Rate limiting check
+        $rateLimitResult = checkRateLimit('register', $_SERVER['REMOTE_ADDR'] ?? 'unknown', 3, 600); // 3 attempts per 10 minutes
+        if (!$rateLimitResult['allowed']) {
+            $error = 'Fazla deneme yapıldı. ' . ceil($rateLimitResult['retry_after'] / 60) . ' dakika sonra tekrar deneyin.';
+        }
+        // Güçlendirilmiş validasyon
+        elseif (empty($username) || empty($password) || empty($confirm_password)) {
             $error = 'Tüm alanları doldurun!';
         } elseif ($password !== $confirm_password) {
             $error = 'Şifreler eşleşmiyor!';
-        } elseif (strlen($username) < 3) {
-            $error = 'Kullanıcı adı en az 3 karakter olmalı!';
-        } elseif (strlen($password) < 6) {
-            $error = 'Şifre en az 6 karakter olmalı!';
-        } elseif (userExists($username)) {
-            $error = 'Bu kullanıcı adı zaten kullanılıyor!';
         } else {
-            // Kullanıcıyı kaydet
-            if (registerUser($username, $password)) {
-                $success = 'Kayıt başarılı! Giriş yapabilirsiniz.';
-                // Başarılı kayıt sonrası yeni token oluştur
-                refreshCSRFToken();
+            // Username validation
+            $usernameValidation = validateUsername($username);
+            if (!$usernameValidation['valid']) {
+                $error = $usernameValidation['error'];
             } else {
-                $error = 'Kayıt sırasında hata oluştu!';
+                // Password validation
+                $passwordValidation = validatePassword($password);
+                if (!$passwordValidation['valid']) {
+                    $error = $passwordValidation['error'];
+                } elseif (userExists($username)) {
+                    $error = 'Bu kullanıcı adı zaten kullanılıyor!';
+                    // Kullanıcıyı kaydet
+                    if (registerUser($username, $password)) {
+                        $success = 'Kayıt başarılı! Giriş yapabilirsiniz.';
+                        // Başarılı kayıt sonrası yeni token oluştur
+                        refreshCSRFToken();
+                    } else {
+                        $error = 'Kayıt sırasında hata oluştu!';
+                    }
+                }
             }
         }
     }

@@ -1,0 +1,79 @@
+[
+    {
+        "id": "perm001",
+        "name": "user_management",
+        "display_name": "Kullanıcı Yönetimi",
+        "description": "Kullanıcı oluşturma, düzenleme ve silme",
+        "category": "system"
+    },
+    {
+        "id": "perm002", 
+        "name": "role_management",
+        "display_name": "Rol Yönetimi",
+        "description": "Rol ve yetki ataması yapma",
+        "category": "system"
+    },
+    {
+        "id": "perm003",
+        "name": "delegation_create",
+        "display_name": "Yetki Devri Oluşturma",
+        "description": "Yeni yetki devri oluşturabilme",
+        "category": "delegation"
+    },
+    {
+        "id": "perm004",
+        "name": "delegation_revoke", 
+        "display_name": "Yetki Devri İptali",
+        "description": "Mevcut yetki devrini iptal etme",
+        "category": "delegation"
+    },
+    {
+        "id": "perm005",
+        "name": "delegation_view_all",
+        "display_name": "Tüm Delegasyonları Görme",
+        "description": "Sistemdeki tüm yetki devrlerini görme",
+        "category": "delegation"
+    },
+    {
+        "id": "perm006",
+        "name": "delegation_view_team",
+        "display_name": "Takım Delegasyonlarını Görme", 
+        "description": "Kendi takımının yetki devrlerini görme",
+        "category": "delegation"
+    },
+    {
+        "id": "perm007",
+        "name": "delegation_view_own",
+        "display_name": "Kendi Delegasyonlarını Görme",
+        "description": "Sadece kendi yetki devrlerini görme",
+        "category": "delegation"
+    },
+    {
+        "id": "perm008",
+        "name": "system_settings",
+        "display_name": "Sistem Ayarları",
+        "description": "Sistem ayarlarını değiştirme",
+        "category": "system"
+    },
+    {
+        "id": "perm009",
+        "name": "reports_view",
+        "display_name": "Raporları Görme", 
+        "description": "Sistem raporlarını görüntüleme",
+        "category": "reports"
+    },
+    {
+        "id": "perm010",
+        "name": "audit_logs",
+        "display_name": "Denetim Logları",
+        "description": "Sistem denetim loglarını görme",
+        "category": "system"
+    },
+    {
+        "id": "perm011",
+        "name": "profile_edit",
+        "display_name": "Profil Düzenleme",
+        "description": "Kendi profilini düzenleme",
+        "category": "profile"
+    }
+]

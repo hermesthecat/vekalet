@@ -1,0 +1,49 @@
+[
+    {
+        "id": "role001",
+        "name": "super_admin",
+        "display_name": "Sistem Yöneticisi",
+        "description": "Tüm yetkilere sahip sistem yöneticisi",
+        "permissions": ["*"],
+        "created_at": "2024-01-01 00:00:00"
+    },
+    {
+        "id": "role002", 
+        "name": "admin",
+        "display_name": "Yönetici",
+        "description": "Genel yönetici yetkilerine sahip",
+        "permissions": [
+            "user_management",
+            "delegation_create",
+            "delegation_revoke", 
+            "delegation_view_all",
+            "reports_view"
+        ],
+        "created_at": "2024-01-01 00:00:00"
+    },
+    {
+        "id": "role003",
+        "name": "manager", 
+        "display_name": "Takım Lideri",
+        "description": "Takım yönetimi yetkilerine sahip",
+        "permissions": [
+            "delegation_create",
+            "delegation_revoke",
+            "delegation_view_team",
+            "reports_view"
+        ],
+        "created_at": "2024-01-01 00:00:00"
+    },
+    {
+        "id": "role004",
+        "name": "user",
+        "display_name": "Kullanıcı", 
+        "description": "Normal kullanıcı yetkilerine sahip",
+        "permissions": [
+            "delegation_create",
+            "delegation_view_own",
+            "profile_edit"
+        ],
+        "created_at": "2024-01-01 00:00:00"
+    }
+]
